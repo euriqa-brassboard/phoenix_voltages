@@ -59,6 +59,10 @@ const solutions = OrderedDict("X2"=>Dict("O0"=>-1.89836, "O1"=>-1.89836,
                                           "L0"=>1.07679, "L8"=>1.07679,
                                           "L1"=>-1.07679, "L9"=>-1.07679))
 
+for electrode in keys(electrode_to_ao)
+    solutions["E_$electrode"] = Dict(electrode=>1.0)
+end
+
 open("$(prefix)_global_adjust.txt", "w") do io
     names = collect(keys(solutions))
     for i in 1:length(names)
