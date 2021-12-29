@@ -125,7 +125,16 @@ end
 for i in 1:size(inter_pad_to_grid, 1)
     inter_pad = inter_pad_to_grid[i, 1]
     grid = inter_pad_to_grid[i, 2]
-    get_net(:grid, grid).inter_pad = inter_pad
+    net = get_net(:grid, grid)
+    if net.electrode == "TI2" || net.electrode == "TV2"
+        get_net(:electrode, "TI2").inter_pad = inter_pad
+        get_net(:electrode, "TV2").inter_pad = inter_pad
+    elseif net.electrode == "TI1" || net.electrode == "TV1"
+        get_net(:electrode, "TI1").inter_pad = inter_pad
+        get_net(:electrode, "TV1").inter_pad = inter_pad
+    else
+        net.inter_pad = inter_pad
+    end
 end
 
 for d25_plug in 1:4
