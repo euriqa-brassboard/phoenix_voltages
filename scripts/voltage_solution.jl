@@ -1,5 +1,19 @@
 #!/usr/bin/julia
 
+struct VoltageSolutions
+    electrodes::Int
+    nx::Int
+    ny::Int
+    nz::Int
+    vsets::Int
+    xaxis::NTuple{3,Float64}
+    yaxis::NTuple{3,Float64}
+    stride::NTuple{3,Float64}
+    origin::NTuple{3,Float64}
+    elecrodemapping::Vector{Int}
+    data::Array{Float64,4}
+end
+
 """
     import_pillbox_v0(filename) -> (header, data)
 
@@ -37,8 +51,9 @@ function import_pillbox_v0(filename)
         end
         data = Array{Float64}(undef, nz, ny, nx, electrodes)
         copyto!(data, reinterpret(Float64, databytes))
-        return (electrodes=electrodes, nx=nx, ny=ny, nz=nz, vsets=vsets,
-                stride=stride, origin=origin, electrodemapping=electrodemapping), data
+        return VoltageSolutions(electrodes, nx, ny, nz, vsets,
+                                (1000, 0, 0), (0, 1000, 0),
+                                stride, origin, electrodemapping, data)
     end
 end
 
@@ -82,9 +97,8 @@ function import_pillbox_v1(filename)
         end
         data = Array{Float64}(undef, nz, ny, nx, electrodes)
         copyto!(data, reinterpret(Float64, databytes))
-        return (electrodes=electrodes, nx=nx, ny=ny, nz=nz,
-                vsets=vsets, xaxis=xaxis, yaxis=yaxis,
-                stride=stride, origin=origin, electrodemapping=electrodemapping), data
+        return VoltageSolutions(electrodes, nx, ny, nz, vsets, xaxis, yaxis,
+                                stride, origin, electrodemapping, data)
     end
 end
 
@@ -128,8 +142,7 @@ function import_pillbox_64(filename)
         end
         data = Array{Float64}(undef, nz, ny, nx, electrodes)
         copyto!(data, reinterpret(Float64, databytes))
-        return (electrodes=electrodes, nx=nx, ny=ny, nz=nz,
-                vsets=vsets, xaxis=xaxis, yaxis=yaxis,
-                stride=stride, origin=origin, electrodemapping=electrodemapping), data
+        return VoltageSolutions(electrodes, nx, ny, nz, vsets, xaxis, yaxis,
+                                stride, origin, electrodemapping, data)
     end
 end
