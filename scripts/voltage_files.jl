@@ -39,6 +39,14 @@ function write_file(file, data::MapFile)
     end
 end
 
+function Base.Dict(mapfile::MapFile)
+    res = Dict{String,Int}()
+    for i in 1:length(mapfile.names)
+        res[mapfile.names[i]] = i
+    end
+    return res
+end
+
 struct CompensationFile
     map::MapFile
     term_names::Vector{String}
