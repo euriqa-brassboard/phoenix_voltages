@@ -92,3 +92,39 @@ function write_file(file, data::CompensationFile)
         end
     end
 end
+
+struct TransferFile
+    map::MapFile
+    line_values::Vector{Vector{Float64}}
+end
+
+function load_file(file, ::Type{TransferFile}; mapfile=nothing)
+    # Assume the eachline iterator is stateful
+    lines = eachline(file)
+    names = split(first(lines), '\t')
+    if mapfile === nothing
+        mapfile = MapFile(names)
+    else
+        @assert mapfile.names == names
+    end
+    mapfile = mapfile::MapFile
+    # Read the rest of the lines
+    line_values = Vector{Float64}[]
+    for line in lines
+        fields = parse.(Float64, split(line, '\t'))
+        @assert length(fields) == length(mapfile.names)
+        push!(line_values, fields)
+    end
+    return TransferFile(mapfile, line_values)
+end
+
+function write_file(file, data::TransferFile)
+    with_write(file) do fh
+        print(fh, join(data.map.names, '\t') * "\r\n")
+        for values in data.line_values
+            # The original file lacks end-of-file new line
+            # Hopefully that doesn't matter as much.
+            print(fh, join((str_float(val) for val in values), '\t') * "\r\n")
+        end
+    end
+end
