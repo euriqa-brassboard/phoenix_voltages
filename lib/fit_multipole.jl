@@ -29,17 +29,23 @@ struct PolyFitResult{N}
     coefficient::Vector{Float64}
 end
 
+function order_index(orders::NTuple{N,Integer}, order::Vararg{Integer,N}) where N
+    return LinearIndices(orders .+ 1)[CartesianIndex(order .+ 1)]
+end
+
+function order_index(res::PolyFitResult{N}, order::Vararg{Integer,N}) where N
+    return order_index(res.orders, order...)
+end
+
 function Base.:\(fitter::PolyFitter{N}, data::AbstractMatrix) where N
     return PolyFitResult{N}(fitter.orders, fitter.coefficient \ vec(data))
 end
 
 function Base.getindex(res::PolyFitResult{N}, order::Vararg{Integer,N}) where N
-    i = LinearIndices(res.orders .+ 1)[CartesianIndex(order .+ 1)]
-    return res.coefficient[i]
+    return res.coefficient[order_index(res, order...)]
 end
 
 function Base.setindex!(res::PolyFitResult{N}, val, order::Vararg{Integer,N}) where N
-    i = LinearIndices(res.orders .+ 1)[CartesianIndex(order .+ 1)]
-    res.coefficient[i] = val
+    res.coefficient[order_index(res, order...)] = val
     return
 end
