@@ -4,7 +4,7 @@
 struct PolyFitter{N}
     orders::NTuple{N,Int}
     coefficient::Matrix{Float64}
-    function PolyFitter(orders::Vararg{Integer,N}) where N
+    function PolyFitter(orders::Vararg{Integer,N}; center=orders ./ 2) where N
         sizes = orders .+ 1
         nterms = prod(sizes)
         coefficient = Matrix{Float64}(undef, nterms, nterms)
@@ -13,7 +13,7 @@ struct PolyFitter{N}
         # Index for position
         for ipos in lindices
             # Position of the point, with the origin in the middle of the grid.
-            pos = Tuple(cindices[ipos]) .- 1 .- orders ./ 2
+            pos = Tuple(cindices[ipos]) .- 1 .- center
             # Index for the polynomial order
             for iorder in lindices
                 order = Tuple(cindices[iorder]) .- 1
