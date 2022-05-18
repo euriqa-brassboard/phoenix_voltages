@@ -146,3 +146,10 @@ function import_pillbox_64(filename)
                                 stride, origin, electrodemapping, data)
     end
 end
+
+for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
+    @eval begin
+        $(Symbol(name, "_index_to_axis"))(sol::VoltageSolutions, i) = (i - 1) * sol.stride[$i] + sol.origin[$i]
+        $(Symbol(name, "_axis_to_index"))(sol::VoltageSolutions, a) = (a - sol.origin[$i]) / sol.stride[$i] + 1
+    end
+end
