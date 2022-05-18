@@ -49,3 +49,36 @@ function Base.setindex!(res::PolyFitResult{N}, val, order::Vararg{Integer,N}) wh
     res.coefficient[order_index(res, order...)] = val
     return
 end
+
+shifted_term(max_order, term_order, shift) =
+    shift^(max_order - term_order) * binomial(max_order, term_order)
+
+function shifted_coefficient(res::PolyFitResult{N}, shift::NTuple{N},
+                             order::Vararg{Integer,N}) where N
+    v = 0.0
+    sizes = res.orders .+ 1
+    lindices = LinearIndices(sizes)
+    cindices = CartesianIndices(sizes)
+    for lidx in lindices
+        cidx = cindices[lidx]
+        term_order = Tuple(cidx) .- 1
+        if !all(term_order .>= order)
+            continue
+        end
+        v += prod(shifted_term.(term_order, order, shift)) * res.coefficient[lidx]
+    end
+    return v
+end
+
+function shift(res::PolyFitResult{N}, shift::NTuple{N}) where N
+    coefficient = similar(res.coefficient)
+    sizes = res.orders .+ 1
+    lindices = LinearIndices(sizes)
+    cindices = CartesianIndices(sizes)
+    for lidx in lindices
+        cidx = cindices[lidx]
+        order = Tuple(cidx) .- 1
+        coefficient[lidx] = shifted_coefficient(res, shift, order...)
+    end
+    return PolyFitResult{N}(res.orders, coefficient)
+end
