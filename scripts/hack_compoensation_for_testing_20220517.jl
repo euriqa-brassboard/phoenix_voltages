@@ -1,6 +1,6 @@
 #!/usr/bin/julia
 
-include("voltage_files.jl")
+include("../lib/voltage_files.jl")
 
 const orig_comp_file = ARGS[1]
 const trans_file = ARGS[2]

@@ -5,7 +5,7 @@ using DataStructures
 
 const prefix = joinpath(@__DIR__, "../voltages/initial")
 
-include("mappings.jl")
+include("../lib/mappings.jl")
 
 function ao2electrode(ao)
     if ao % 25 == 12

@@ -2,7 +2,7 @@
 
 using DelimitedFiles
 
-include("mappings.jl")
+include("../lib/mappings.jl")
 
 const grid_to_electrode = readdlm(joinpath(@__DIR__, "../data/grid_to_electrode.csv"), ',')
 const inter_pad_to_grid = readdlm(joinpath(@__DIR__, "../data/inter_pad_to_grid.csv"), ',')
