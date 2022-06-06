@@ -1,5 +1,7 @@
 #!/usr/bin/julia
 
+module PolyFit
+
 # N dimensional multipole fitting
 struct PolyFitter{N}
     orders::NTuple{N,Int}
@@ -117,4 +119,6 @@ function shift(res::PolyFitResult{N}, shift::NTuple{N}) where N
         coefficient[lidx] = shifted_coefficient(res, shift, order...)
     end
     return PolyFitResult{N}(res.orders, coefficient)
+end
+
 end
