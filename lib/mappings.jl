@@ -1,5 +1,11 @@
 #!/usr/bin/julia
 
+module Mappings
+
+export dsub100_to_dsub25, dsub100_to_electrode,
+    dsub25_to_electrode, electrode_to_dsub25,
+    ao_to_electrode, electrode_to_ao
+
 const dsub100_to_dsub25 = Dict("1-1"=>"4-2-4",
                                "1-2"=>"1-2-4",
                                "1-3"=>"3-2-5",
@@ -236,4 +242,6 @@ for (k, v) in dsub100_to_dsub25
     electrode_to_dsub25[electrode] = v
     ao_to_electrode[ao] = electrode
     electrode_to_ao[electrode] = ao
+end
+
 end

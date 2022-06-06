@@ -1,11 +1,12 @@
 #!/usr/bin/julia
 
+push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
+
 using Printf
 using DataStructures
+using PhoenixVoltages.Mappings
 
 const prefix = joinpath(@__DIR__, "../voltages/initial")
-
-include("../lib/mappings.jl")
 
 function ao2electrode(ao)
     if ao % 25 == 12

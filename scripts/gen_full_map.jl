@@ -1,8 +1,10 @@
 #!/usr/bin/julia
 
+push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
+
 using DelimitedFiles
 
-include("../lib/mappings.jl")
+using PhoenixVoltages.Mappings
 
 const grid_to_electrode = readdlm(joinpath(@__DIR__, "../data/grid_to_electrode.csv"), ',')
 const inter_pad_to_grid = readdlm(joinpath(@__DIR__, "../data/inter_pad_to_grid.csv"), ',')
