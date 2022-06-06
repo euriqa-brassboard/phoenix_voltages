@@ -29,6 +29,42 @@ struct PolyFitResult{N}
     coefficient::Vector{Float64}
 end
 
+function (res::PolyFitResult{N})(pos::Vararg{Any,N}) where N
+    sizes = res.orders .+ 1
+    lindices = LinearIndices(sizes)
+    cindices = CartesianIndices(sizes)
+    v = 0.0
+    for iorder in lindices
+        order = Tuple(cindices[iorder]) .- 1
+        v += res.coefficient[iorder] * prod(pos.^order)
+    end
+    return v
+end
+
+# Gradient along dimension
+function grad(res::PolyFitResult{N}, dim, pos::Vararg{Any,N}) where N
+    sizes = res.orders .+ 1
+    lindices = LinearIndices(sizes)
+    cindices = CartesianIndices(sizes)
+    order_offset = ntuple((i)->i == dim ? -1 : 0, Val(N))
+    v = 0.0
+    for iorder in lindices
+        # Original polymomial orders along each dimensions
+        order = Tuple(cindices[iorder]) .- 1
+        factor = order[dim]
+        if factor == 0
+            continue
+        end
+        term = factor * res.coefficient[iorder]
+        @inbounds for i in 1:N
+            o = i == dim ? order[i] - 1 : order[i]
+            term *= pos[i]^o
+        end
+        v += term
+    end
+    return v
+end
+
 function order_index(orders::NTuple{N,Integer}, order::Vararg{Integer,N}) where N
     return LinearIndices(orders .+ 1)[CartesianIndex(order .+ 1)]
 end
