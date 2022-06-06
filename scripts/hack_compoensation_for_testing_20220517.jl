@@ -1,6 +1,8 @@
 #!/usr/bin/julia
 
-include("../lib/voltage_files.jl")
+push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
+
+using PhoenixVoltages.OutputFiles
 
 const orig_comp_file = ARGS[1]
 const trans_file = ARGS[2]

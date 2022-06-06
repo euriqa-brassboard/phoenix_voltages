@@ -1,5 +1,10 @@
 #!/usr/bin/julia
 
+module OutputFiles
+
+export MapFile, CompensationFile, TransferFile,
+    load_file, write_file
+
 function with_write(cb, file::IO)
     cb(file)
 end
@@ -135,4 +140,6 @@ function write_file(file, data::TransferFile)
             print(fh, join((str_float(val) for val in values), '\t') * "\r\n")
         end
     end
+end
+
 end
