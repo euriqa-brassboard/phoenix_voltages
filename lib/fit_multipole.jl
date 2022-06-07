@@ -2,6 +2,8 @@
 
 module PolyFit
 
+import ..gradient
+
 # N dimensional multipole fitting
 struct PolyFitter{N}
     orders::NTuple{N,Int}
@@ -44,7 +46,7 @@ function (res::PolyFitResult{N})(pos::Vararg{Any,N}) where N
 end
 
 # Gradient along dimension
-function grad(res::PolyFitResult{N}, dim, pos::Vararg{Any,N}) where N
+function gradient(res::PolyFitResult{N}, dim, pos::Vararg{Any,N}) where N
     sizes = res.orders .+ 1
     lindices = LinearIndices(sizes)
     cindices = CartesianIndices(sizes)
