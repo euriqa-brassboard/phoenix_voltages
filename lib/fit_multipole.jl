@@ -77,7 +77,7 @@ function order_index(res::PolyFitResult{N}, order::Vararg{Integer,N}) where N
     return order_index(res.orders, order...)
 end
 
-function Base.:\(fitter::PolyFitter{N}, data::AbstractMatrix) where N
+function Base.:\(fitter::PolyFitter{N}, data::AbstractArray{T,N} where T) where N
     return PolyFitResult{N}(fitter.orders, fitter.coefficient \ vec(data))
 end
 
