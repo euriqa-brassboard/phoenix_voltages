@@ -17,7 +17,7 @@ function FitCache(fitter::PolyFit.PolyFitter{N}, data::A) where (A<:AbstractArra
     return FitCache{N,A}(fitter, data, cache)
 end
 
-function Base.get(cache::FitCache{N}, idx::NTuple{N}) where N
+function get_internal(cache::FitCache{N}, idx::NTuple{N,Integer}) where N
     if isassigned(cache.cache, idx...)
         return cache.cache[idx...]
     end
@@ -41,11 +41,26 @@ function _best_fit_idx(ntotal, order, pos)
     return idx
 end
 
+function get_shifted(cache::FitCache{N}, pos::NTuple{N}) where N
+    sizes = size(cache.data)
+    orders = cache.fitter.orders
+    idxs = _best_fit_idx.(sizes, orders, pos)
+    fit = get_internal(cache, idxs)
+    return PolyFit.shift(fit, pos .- idxs)
+end
+
+function Base.get(cache::FitCache{N}, idx::NTuple{N,Integer}) where N
+    if checkbounds(Bool, cache.cache, idx...)
+        return get_internal(cache, idx)
+    end
+    return get_shifted(cache, idx)
+end
+
 function gradient(cache::FitCache{N}, dim, pos::Vararg{Any,N}) where N
     sizes = size(cache.data)
     orders = cache.fitter.orders
     idxs = _best_fit_idx.(sizes, orders, pos)
-    fit = get(cache, idxs)
+    fit = get_internal(cache, idxs)
     # center of the fit in index: idx + order / 2
     # position within fit: pos - idx - order / 2
     pos = pos .- idxs .- orders ./ 2
