@@ -2,8 +2,10 @@
 
 push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
+using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
 using PhoenixVoltages.VoltageSolutions
+using PhoenixVoltages.PolyFit
 using NaCsPlot
 using PyPlot
 using MAT
@@ -26,7 +28,27 @@ matopen("$(data_prefix).mat", "w") do mat
     write(mat, "zy_um", centers_um)
 end
 
+const residual_grad = similar(centers)
+# This is mainly a test for the shift function...
+for i in 1:solution.nx
+    data = solution.data[:, :, i, 2]
+    fitter = PolyFit.PolyFitter(3, 3)
+    cache = ProcessSolution.FitCache(fitter, data)
+    fit = get(cache, (centers[i, 1], centers[i, 2]))
+    residual_grad[i, 1] = fit[1, 0]
+    residual_grad[i, 2] = fit[0, 1]
+    # residual_grad[i, 1] = PhoenixVoltages.gradient(cache, 1, centers[i, 1], centers[i, 2])
+    # residual_grad[i, 2] = PhoenixVoltages.gradient(cache, 2, centers[i, 1], centers[i, 2])
+end
+
 const xs_um = x_index_to_axis.(Ref(solution), 1:solution.nx) .* 1000
+
+figure()
+plot(xs_um, residual_grad[:, 1], label="Z")
+plot(xs_um, residual_grad[:, 2], label="Y")
+xlabel("X (\$\\mu\$m)")
+title("Residual gradient")
+grid()
 
 figure(figsize=[6.4 * 2, 4.8])
 subplot(1, 2, 1)
