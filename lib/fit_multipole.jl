@@ -8,7 +8,8 @@ import ..gradient
 struct PolyFitter{N}
     orders::NTuple{N,Int}
     coefficient::Matrix{Float64}
-    function PolyFitter(orders::Vararg{Integer,N}; center=orders ./ 2) where N
+    # center is the origin of the polynomial in index (1-based)
+    function PolyFitter(orders::Vararg{Integer,N}; center=orders ./ 2 .+ 1) where N
         sizes = orders .+ 1
         nterms = prod(sizes)
         coefficient = Matrix{Float64}(undef, nterms, nterms)
@@ -17,7 +18,7 @@ struct PolyFitter{N}
         # Index for position
         for ipos in lindices
             # Position of the point, with the origin in the middle of the grid.
-            pos = Tuple(cindices[ipos]) .- 1 .- center
+            pos = Tuple(cindices[ipos]) .- center
             # Index for the polynomial order
             for iorder in lindices
                 order = Tuple(cindices[iorder]) .- 1
@@ -110,6 +111,9 @@ function shifted_coefficient(res::PolyFitResult{N}, shift::NTuple{N},
     return v
 end
 
+# shift the solution to get the polynomial representing the same function
+# but with the origin shifted to `shift`.
+# `x` with a shift of `1` becomes `x + 1`.
 function shift(res::PolyFitResult{N}, shift::NTuple{N}) where N
     coefficient = similar(res.coefficient)
     sizes = res.orders .+ 1
