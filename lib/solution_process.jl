@@ -3,6 +3,7 @@
 module ProcessSolution
 
 import ..PolyFit
+using ..VoltageSolutions
 import ..gradient
 using NLsolve
 
@@ -225,5 +226,67 @@ function __populate_positions()
 end
 
 __populate_positions()
+
+struct ConstraintSolution
+    electrodes::Int
+    nx::Int
+    ny::Int
+    nz::Int
+    stride::NTuple{3,Float64}
+    origin::NTuple{3,Float64}
+    data::Array{Float64,4}
+    electrode_index::Dict{String,Int}
+    electrode_names::Vector{Vector{String}}
+end
+
+function ConstraintSolution(raw::VoltageSolution, aliases::Dict{Int,Int})
+    origin_names = VoltageSolutions.electrode_names
+    # Compute the mapping between id's
+    id_map = zeros(Int, raw.electrodes)
+    id = 0
+    new_electrodes = raw.electrodes - length(aliases)
+    data = Array{Float64}(undef, raw.nz, raw.ny, raw.nx, new_electrodes)
+    electrode_names = Vector{Vector{String}}(undef, new_electrodes)
+    electrode_index = Dict{String,Int}()
+    for i in 1:raw.electrodes
+        if i in keys(aliases)
+            continue
+        end
+        id += 1
+        id_map[i] = id
+        data[:, :, :, id] .= @view raw.data[:, :, :, i]
+        name = origin_names[i]
+        electrode_index[name] = id
+        electrode_names[id] = [name]
+    end
+    @assert new_electrodes == id
+    for (k, v) in aliases
+        # The user should connect directly to the final one
+        @assert !(v in keys(aliases))
+        id = id_map[v]
+        @assert id != 0
+        data[:, :, :, id] .= @view(data[:, :, :, id]) .+ @view(raw.data[:, :, :, k])
+        name = origin_names[k]
+        electrode_index[name] = id
+        push!(electrode_names[id], name)
+    end
+    return ConstraintSolution(new_electrodes, raw.nx, raw.ny, raw.nz,
+                              raw.stride, raw.origin,
+                              data, electrode_index, electrode_names)
+end
+
+function ConstraintSolution(raw::VoltageSolution, aliases::Dict{String,String})
+    mapping = VoltageSolutions.electrode_index
+    return ConstraintSolution(raw, Dict(mapping[k]=>mapping[v] for (k, v) in aliases))
+end
+
+for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
+    @eval begin
+        export $(Symbol(name, "_index_to_axis"))
+        VoltageSolutions.$(Symbol(name, "_index_to_axis"))(sol::ConstraintSolution, i) = (i - 1) * sol.stride[$i] + sol.origin[$i]
+        export $(Symbol(name, "_axis_to_index"))
+        VoltageSolutions.$(Symbol(name, "_axis_to_index"))(sol::ConstraintSolution, a) = (a - sol.origin[$i]) / sol.stride[$i] + 1
+    end
+end
 
 end
