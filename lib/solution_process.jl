@@ -96,4 +96,134 @@ function find_all_flat_points(all_data::A; init=ntuple(i->(size(all_data, i) + 1
     return all_res
 end
 
+# X position of electrodes
+# We need to know the axial (X) positions of the electrodes so that we can figure out
+# which electrodes to use for generating potentials at a given location.
+
+# From looking at the Sandia 3D model, each inner electrode is 70um wide in X direction
+# (67um + 3um gap) and each outer quantum is 2x this (140um total).
+# All the odd electrode are always located at the same X position as
+# the electrode numbered one less than it.
+
+# In unit of 70um and showing only the even electrodes, the order/positions
+# of the electrodes are,
+
+# Outer: |                47(O0)              |22(Q44-64)|        14(O0)        |
+# Inner: |2(gap)|10(GND)|5(L0-8)|30(S10-0 x 5)|22(Q0-42) |6(S0-10)|6(GND)|2(gap)|
+
+# where the number outside the parenthesis is the width in unit of 70um
+# and the parenthesis marks the corresponding (even) electrode.
+# The origin is located in the middle of the quantum region (11 from left and right).
+# This distribution is cross-checked with the potential data
+# by setting two pairs of electrode to opposite values and measuring the position
+# of the zero crossing.
+
+struct ElectrodePosition
+    name::String
+    left::Float64
+    right::Float64
+end
+
+const outer_positions = ElectrodePosition[]
+const inner_positions = ElectrodePosition[]
+
+function __populate_positions()
+    begin_gnd = 12
+    nL = 5
+    nS = 6
+    S_rep1 = 5
+    nQ = 22
+    S_rep2 = 1
+    end_gnd = 8
+
+    unit_um = 70
+
+    @assert nQ % 2 == 0
+    nQ_outer = nQ ÷ 2
+    left_edge = -(begin_gnd + nL + nS * S_rep1 + nQ ÷ 2)
+
+    pos_inner = left_edge + begin_gnd
+    pos_outer = left_edge
+
+    # Loading
+    for i in 1:nL
+        push!(inner_positions,
+              ElectrodePosition("L$(i * 2 - 2)", pos_inner * unit_um,
+                                (pos_inner + 1) * unit_um))
+        push!(inner_positions,
+              ElectrodePosition("L$(i * 2 - 1)", pos_inner * unit_um,
+                                (pos_inner + 1) * unit_um))
+        pos_inner += 1
+    end
+
+    # Transition 1
+    for j in 1:S_rep1
+        for i in nS:-1:1
+            push!(inner_positions,
+                  ElectrodePosition("S$(i * 2 - 2)", pos_inner * unit_um,
+                                    (pos_inner + 1) * unit_um))
+            push!(inner_positions,
+                  ElectrodePosition("S$(i * 2 - 1)", pos_inner * unit_um,
+                                    (pos_inner + 1) * unit_um))
+            pos_inner += 1
+        end
+    end
+
+    # Outer 1
+    push!(outer_positions,
+          ElectrodePosition("O0", pos_outer * unit_um,
+                            pos_inner * unit_um))
+    push!(outer_positions,
+          ElectrodePosition("O1", pos_outer * unit_um,
+                            pos_inner * unit_um))
+    pos_outer = pos_inner
+
+    # Quantum inner
+    for i in 1:nQ
+        push!(inner_positions,
+              ElectrodePosition("Q$(i * 2 - 2)", pos_inner * unit_um,
+                                (pos_inner + 1) * unit_um))
+        push!(inner_positions,
+              ElectrodePosition("Q$(i * 2 - 1)", pos_inner * unit_um,
+                                (pos_inner + 1) * unit_um))
+        pos_inner += 1
+    end
+
+    # Quantum outer
+    for i in 1:nQ_outer
+        i += nQ
+        push!(outer_positions,
+              ElectrodePosition("Q$(i * 2 - 2)", pos_outer * unit_um,
+                                (pos_outer + 2) * unit_um))
+        push!(outer_positions,
+              ElectrodePosition("Q$(i * 2 - 1)", pos_outer * unit_um,
+                                (pos_outer + 2) * unit_um))
+        pos_outer += 2
+    end
+    @assert pos_inner == pos_outer
+
+    # Transition 2
+    for j in 1:S_rep2
+        for i in 1:nS
+            push!(inner_positions,
+                  ElectrodePosition("S$(i * 2 - 2)", pos_inner * unit_um,
+                                    (pos_inner + 1) * unit_um))
+            push!(inner_positions,
+                  ElectrodePosition("S$(i * 2 - 1)", pos_inner * unit_um,
+                                    (pos_inner + 1) * unit_um))
+            pos_inner += 1
+        end
+    end
+
+    # Outer 1
+    push!(outer_positions,
+          ElectrodePosition("O0", pos_outer * unit_um,
+                            (pos_inner + end_gnd) * unit_um))
+    push!(outer_positions,
+          ElectrodePosition("O1", pos_outer * unit_um,
+                            (pos_inner + end_gnd) * unit_um))
+end
+
+__populate_positions()
+
 end
