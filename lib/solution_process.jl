@@ -215,7 +215,7 @@ function __populate_positions()
         end
     end
 
-    # Outer 1
+    # Outer 2
     push!(outer_positions,
           ElectrodePosition("O0", pos_outer * unit_um,
                             (pos_inner + end_gnd) * unit_um))
