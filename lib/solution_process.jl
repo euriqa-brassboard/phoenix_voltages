@@ -123,6 +123,7 @@ struct ElectrodePosition
     name::String
     left::Float64
     right::Float64
+    up::Bool
 end
 
 const outer_positions = ElectrodePosition[]
@@ -150,10 +151,10 @@ function __populate_positions()
     for i in 1:nL
         push!(inner_positions,
               ElectrodePosition("L$(i * 2 - 2)", pos_inner * unit_um,
-                                (pos_inner + 1) * unit_um))
+                                (pos_inner + 1) * unit_um, true))
         push!(inner_positions,
               ElectrodePosition("L$(i * 2 - 1)", pos_inner * unit_um,
-                                (pos_inner + 1) * unit_um))
+                                (pos_inner + 1) * unit_um, false))
         pos_inner += 1
     end
 
@@ -162,10 +163,10 @@ function __populate_positions()
         for i in nS:-1:1
             push!(inner_positions,
                   ElectrodePosition("S$(i * 2 - 2)", pos_inner * unit_um,
-                                    (pos_inner + 1) * unit_um))
+                                    (pos_inner + 1) * unit_um, true))
             push!(inner_positions,
                   ElectrodePosition("S$(i * 2 - 1)", pos_inner * unit_um,
-                                    (pos_inner + 1) * unit_um))
+                                    (pos_inner + 1) * unit_um, false))
             pos_inner += 1
         end
     end
@@ -173,20 +174,20 @@ function __populate_positions()
     # Outer 1
     push!(outer_positions,
           ElectrodePosition("O0", pos_outer * unit_um,
-                            pos_inner * unit_um))
+                            pos_inner * unit_um, true))
     push!(outer_positions,
           ElectrodePosition("O1", pos_outer * unit_um,
-                            pos_inner * unit_um))
+                            pos_inner * unit_um, false))
     pos_outer = pos_inner
 
     # Quantum inner
     for i in 1:nQ
         push!(inner_positions,
               ElectrodePosition("Q$(i * 2 - 2)", pos_inner * unit_um,
-                                (pos_inner + 1) * unit_um))
+                                (pos_inner + 1) * unit_um, true))
         push!(inner_positions,
               ElectrodePosition("Q$(i * 2 - 1)", pos_inner * unit_um,
-                                (pos_inner + 1) * unit_um))
+                                (pos_inner + 1) * unit_um, false))
         pos_inner += 1
     end
 
@@ -195,10 +196,10 @@ function __populate_positions()
         i += nQ
         push!(outer_positions,
               ElectrodePosition("Q$(i * 2 - 2)", pos_outer * unit_um,
-                                (pos_outer + 2) * unit_um))
+                                (pos_outer + 2) * unit_um, true))
         push!(outer_positions,
               ElectrodePosition("Q$(i * 2 - 1)", pos_outer * unit_um,
-                                (pos_outer + 2) * unit_um))
+                                (pos_outer + 2) * unit_um, false))
         pos_outer += 2
     end
     @assert pos_inner == pos_outer
@@ -208,10 +209,10 @@ function __populate_positions()
         for i in 1:nS
             push!(inner_positions,
                   ElectrodePosition("S$(i * 2 - 2)", pos_inner * unit_um,
-                                    (pos_inner + 1) * unit_um))
+                                    (pos_inner + 1) * unit_um, true))
             push!(inner_positions,
                   ElectrodePosition("S$(i * 2 - 1)", pos_inner * unit_um,
-                                    (pos_inner + 1) * unit_um))
+                                    (pos_inner + 1) * unit_um, false))
             pos_inner += 1
         end
     end
@@ -219,10 +220,10 @@ function __populate_positions()
     # Outer 2
     push!(outer_positions,
           ElectrodePosition("O0", pos_outer * unit_um,
-                            (pos_inner + end_gnd) * unit_um))
+                            (pos_inner + end_gnd) * unit_um, true))
     push!(outer_positions,
           ElectrodePosition("O1", pos_outer * unit_um,
-                            (pos_inner + end_gnd) * unit_um))
+                            (pos_inner + end_gnd) * unit_um, false))
 end
 
 __populate_positions()
