@@ -14,7 +14,7 @@ struct VoltageSolution
     yaxis::NTuple{3,Float64}
     stride::NTuple{3,Float64}
     origin::NTuple{3,Float64}
-    elecrodemapping::Vector{Int}
+    electrodemapping::Vector{Int}
     data::Array{Float64,4}
 end
 
