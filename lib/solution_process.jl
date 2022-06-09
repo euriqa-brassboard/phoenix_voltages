@@ -126,6 +126,16 @@ struct ElectrodePosition
     up::Bool
 end
 
+function distance(pos::ElectrodePosition, x)
+    if x < pos.left
+        return pos.left - x
+    elseif x > pos.right
+        return x - pos.right
+    else
+        return 0.0
+    end
+end
+
 const outer_positions = ElectrodePosition[]
 const inner_positions = ElectrodePosition[]
 
@@ -287,6 +297,177 @@ for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
         VoltageSolutions.$(Symbol(name, "_index_to_axis"))(sol::ConstraintSolution, i) = (i - 1) * sol.stride[$i] + sol.origin[$i]
         export $(Symbol(name, "_axis_to_index"))
         VoltageSolutions.$(Symbol(name, "_axis_to_index"))(sol::ConstraintSolution, a) = (a - sol.origin[$i]) / sol.stride[$i] + 1
+    end
+end
+
+mutable struct ElectrodeSearchState
+    inner_idx1::Int
+    inner_idx2::Int
+    outer_idx1::Int
+    outer_idx2::Int
+
+    const pos::Float64
+    const inner_candidates::Vector{ElectrodePosition}
+    const outer_candidates::Vector{ElectrodePosition}
+    function ElectrodeSearchState(pos)
+        inner_idx2 = searchsortedfirst(inner_positions, pos, lt=(x, y)->x.right < y)
+        outer_idx2 = searchsortedfirst(outer_positions, pos, lt=(x, y)->x.right < y)
+
+        return new(inner_idx2 - 1, inner_idx2, outer_idx2 - 1, outer_idx2,
+                   pos, ElectrodePosition[], ElectrodePosition[])
+    end
+end
+
+function _find_next_distance!(state::ElectrodeSearchState)
+    # First find the closest distance
+    dist = Inf
+    if state.inner_idx2 <= length(inner_positions)
+        dist = min(dist, distance(inner_positions[state.inner_idx2], state.pos))
+    end
+    if state.inner_idx1 > 0
+        dist = min(dist, distance(inner_positions[state.inner_idx1], state.pos))
+    end
+    if state.outer_idx2 <= length(outer_positions)
+        dist = min(dist, distance(outer_positions[state.outer_idx2], state.pos))
+    end
+    if state.outer_idx1 > 0
+        dist = min(dist, distance(outer_positions[state.outer_idx1], state.pos))
+    end
+    if !isfinite(dist)
+        error("Unable to find enough terms")
+    end
+    empty!(state.inner_candidates)
+    empty!(state.outer_candidates)
+    while state.inner_idx2 <= length(inner_positions)
+        epos = inner_positions[state.inner_idx2]
+        if distance(epos, state.pos) > dist
+            break
+        end
+        push!(state.inner_candidates, epos)
+        state.inner_idx2 += 1
+    end
+    while state.inner_idx1 > 0
+        epos = inner_positions[state.inner_idx1]
+        if distance(epos, state.pos) > dist
+            break
+        end
+        push!(state.inner_candidates, epos)
+        state.inner_idx1 -= 1
+    end
+    while state.outer_idx2 <= length(outer_positions)
+        epos = outer_positions[state.outer_idx2]
+        if distance(epos, state.pos) > dist
+            break
+        end
+        push!(state.outer_candidates, epos)
+        state.outer_idx2 += 1
+    end
+    while state.outer_idx1 > 0
+        epos = outer_positions[state.outer_idx1]
+        if distance(epos, state.pos) > dist
+            break
+        end
+        push!(state.outer_candidates, epos)
+        state.outer_idx1 -= 1
+    end
+    @assert !isempty(state.inner_candidates) || !isempty(state.outer_candidates)
+end
+
+"""
+Find exactly n electrodes that are the closest in axial (X) position to `pos`.
+
+The constraints from `solution` will be used to make sure
+"""
+function find_n_electrodes(solution::ConstraintSolution, pos, n)
+    nup = 0
+    ndown = 0
+    res = Set{Int}()
+
+    search_state = ElectrodeSearchState(pos)
+
+    inner_up = Int[]
+    inner_down = Int[]
+    outer_up = Int[]
+    outer_down = Int[]
+    while true
+        nleft = n - length(res)
+        if nleft <= 0
+            return res
+        end
+
+        _find_next_distance!(search_state)
+
+        empty!(inner_up)
+        empty!(inner_down)
+        for p in search_state.inner_candidates
+            id = solution.electrode_index[p.name]
+            # Ground or already added
+            if id == 1
+                continue
+            elseif id in res
+                # Don't add duplicate electrode but do count up vs down
+                if p.up
+                    nup += 1
+                else
+                    ndown += 1
+                end
+                continue
+            end
+            push!(p.up ? inner_up : inner_down, id)
+        end
+        n_inner_up = length(inner_up)
+        n_inner_down = length(inner_down)
+        if n_inner_up + n_inner_down <= nleft
+            nleft -= n_inner_up + n_inner_down
+            nup += n_inner_up
+            ndown += n_inner_down
+            union!(res, inner_up)
+            union!(res, inner_down)
+        else
+            # Found too many: try to balance up and down
+            # Do note that nup + ndown could be more than n due to shorted electrodes
+            ndown_use = min(max((nleft + nup - ndown) ÷ 2, 0), n_inner_down, nleft)
+            nup_use = nleft - ndown_use
+            union!(res, @view inner_up[1:nup_use])
+            union!(res, @view inner_down[1:ndown_use])
+            return res
+        end
+
+        empty!(outer_up)
+        empty!(outer_down)
+        for p in search_state.outer_candidates
+            id = solution.electrode_index[p.name]
+            # Ground or already added
+            if id == 1
+                continue
+            elseif id in res
+                # Don't add duplicate electrode but do count up vs down
+                if p.up
+                    nup += 1
+                else
+                    ndown += 1
+                end
+                continue
+            end
+            push!(p.up ? outer_up : outer_down, id)
+        end
+        n_outer_up = length(outer_up)
+        n_outer_down = length(outer_down)
+        if n_outer_up + n_outer_down <= nleft
+            nleft -= n_outer_up + n_outer_down
+            nup += n_outer_up
+            ndown += n_outer_down
+            union!(res, outer_up)
+            union!(res, outer_down)
+        else
+            # Found too many: try to balance up and down
+            # Do note that nup + ndown could be more than n due to shorted electrodes
+            ndown_use = min(max((nleft + nup - ndown) ÷ 2, 0), n_outer_down, nleft)
+            nup_use = nleft - ndown_use
+            union!(res, @view outer_up[1:nup_use])
+            union!(res, @view outer_down[1:ndown_use])
+            return res
+        end
     end
 end
 
