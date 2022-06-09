@@ -160,4 +160,14 @@ for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
     end
 end
 
+const electrode_names = ["GND"; "RF";
+                         "L" .* string.(0:9);
+                         "O" .* string.(0:1);
+                         "Q" .* string.(0:65);
+                         "S" .* string.(0:11);]
+const electrode_index = Dict{String,Int}()
+for i in 1:length(electrode_names)
+    electrode_index[electrode_names[i]] = i
+end
+
 end
