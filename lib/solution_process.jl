@@ -471,4 +471,49 @@ function find_n_electrodes(solution::ConstraintSolution, pos, n)
     end
 end
 
+# Terms we care about
+# x, y, z, xy, yz, xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
+# Since we care about the symmetry of the x^2 and z^2 term,
+# we actually do need to scale the x, y and z correctly.
+function get_compensate_terms1(res::PolyFitResult{3}, stride)
+    # axis order of fitting result is z, y, x
+    # axis order of stride is x, y, z
+    raw_x = res[0, 0, 1]
+    raw_y = res[0, 1, 0]
+    raw_z = res[1, 0, 0]
+
+    raw_xy = res[0, 1, 1]
+    raw_yz = res[1, 1, 0]
+    raw_zx = res[1, 0, 1]
+
+    raw_x2 = res[0, 0, 2]
+    raw_y2 = res[0, 2, 0]
+    raw_z2 = res[2, 0, 0]
+
+    raw_x3 = res[0, 0, 3]
+    raw_x4 = res[0, 0, 4]
+
+    scaled_x = raw_x / stride[1]
+    scaled_y = raw_y / stride[2]
+    scaled_z = raw_z / stride[3]
+
+    scaled_xy = raw_xy / stride[1] / stride[2]
+    scaled_yz = raw_yz / stride[2] / stride[3]
+    scaled_zx = raw_zx / stride[3] / stride[1]
+
+    scaled_x2 = raw_x2 / stride[1]^2
+    scaled_y2 = raw_y2 / stride[2]^2
+    scaled_z2 = raw_z2 / stride[3]^2
+
+    scaled_x3 = raw_x3 / stride[1]^3
+    scaled_x4 = raw_x4 / stride[1]^4
+
+    xx = (scaled_x2 - scaled_y2 - scaled_z2) / 3
+    zz = (scaled_z2 - scaled_y2) / 2
+
+    return (scaled_x, scaled_y, scaled_z,
+            scaled_xy, scaled_yz, scaled_zx,
+            zz, xx, scaled_x3, scaled_x4)
+end
+
 end
