@@ -538,20 +538,23 @@ function get_compensate_terms1(res::PolyFit.PolyFitResult{3}, stride)
     scale_2 = (2.74^2 / 525e-6)
     scale_3 = (2.74^3 / 525e-6)
     scale_4 = (2.74^4 / 525e-6)
-    return (scaled_x * scale_1, scaled_y * scale_1, scaled_z * scale_1,
-            scaled_xy * scale_2, scaled_yz * scale_2, scaled_zx * scale_2,
-            zz * scale_2, xx * scale_2, scaled_x3 * scale_3, scaled_x4 * scale_4)
+    return (dx=scaled_x * scale_1, dy=scaled_y * scale_1, dz=scaled_z * scale_1,
+            xy=scaled_xy * scale_2, yz=scaled_yz * scale_2, zx=scaled_zx * scale_2,
+            z2=zz * scale_2, x2=xx * scale_2, x3=scaled_x3 * scale_3,
+            x4=scaled_x4 * scale_4)
 end
 
 function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
     nfits = length(fits)
     coefficient = Matrix{Float64}(undef, 10, nfits)
     for i in 1:nfits
-        coefficient[:, i] .= get_compensate_terms1(fits[i], stride)
+        coefficient[:, i] .= Tuple(get_compensate_terms1(fits[i], stride))
     end
     X = coefficient \ Matrix(I, 10, 10)
     @assert size(X, 2) == 10
-    return ntuple(i->X[:, i], Val(10))
+    return (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
+            xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
+            z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10])
 end
 
 function compensate_fitter1(solution::ConstraintSolution)
