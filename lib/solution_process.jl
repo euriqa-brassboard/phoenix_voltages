@@ -498,6 +498,7 @@ end
 # x, y, z, xy, yz, xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # Since we care about the symmetry of the x^2 and z^2 term,
 # we actually do need to scale the x, y and z correctly.
+# stride should be in um, voltage should be in V
 function get_compensate_terms1(res::PolyFit.PolyFitResult{3}, stride)
     # axis order of fitting result is z, y, x
     # axis order of stride is x, y, z
@@ -534,9 +535,19 @@ function get_compensate_terms1(res::PolyFit.PolyFitResult{3}, stride)
     xx = (scaled_x2 - scaled_y2 - scaled_z2) / 3
     zz = (scaled_z2 - scaled_y2) / 2
 
-    return (scaled_x, scaled_y, scaled_z,
-            scaled_xy, scaled_yz, scaled_zx,
-            zz, xx, scaled_x3, scaled_x4)
+    # Current units are V/um^n
+    # Expected units
+    # DX/DY/DZ: V/m
+    # XY, YZ, ZX, ZZ, XX: 525 uV / (2.74 um)^2
+    # X3: 525 uV / (2.74 um)^3
+    # X4: 525 uV / (2.74 um)^4
+    scale_1 = 1e6
+    scale_2 = (2.74^2 / 525e-6)
+    scale_3 = (2.74^3 / 525e-6)
+    scale_4 = (2.74^4 / 525e-6)
+    return (scaled_x * scale_1, scaled_y * scale_1, scaled_z * scale_1,
+            scaled_xy * scale_2, scaled_yz * scale_2, scaled_zx * scale_2,
+            zz * scale_2, xx * scale_2, scaled_x3 * scale_3, scaled_x4 * scale_4)
 end
 
 function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
@@ -562,7 +573,7 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos)
     ele_select = find_n_electrodes(cache.solution, x_coord, 10)
     ele_select = sort!(collect(ele_select))
     fits = [get(get(cache, e), pos) for e in ele_select]
-    # Change to um in unit
+    # Change stride to um in unit
     return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
 end
 
