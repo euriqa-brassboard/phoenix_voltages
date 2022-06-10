@@ -34,6 +34,27 @@ struct PolyFitResult{N}
     coefficient::Vector{Float64}
 end
 
+function assert_same_orders(u::PolyFitResult{N}, v::PolyFitResult{N}) where N
+    @assert u.orders == v.orders
+end
+
+Base.:+(u::PolyFitResult) = u
+function Base.:+(u::PolyFitResult{N}, v::PolyFitResult{N}) where N
+    assert_same_orders(u, v)
+    PolyFitResult(u.orders, u.coefficient .+ v.coefficient)
+end
+Base.:-(u::PolyFitResult) = PolyFitResult(u.orders, .-u.coefficient)
+function Base.:-(u::PolyFitResult{N}, v::PolyFitResult{N}) where N
+    assert_same_orders(u, v)
+    PolyFitResult(u.orders, u.coefficient .- v.coefficient)
+end
+
+Base.:*(u::PolyFitResult, v::Number) = PolyFitResult(u.orders, u.coefficient .* v)
+Base.:*(v::Number, u::PolyFitResult) = u * v
+
+Base.:/(u::PolyFitResult, v::Number) = PolyFitResult(u.orders, u.coefficient ./ v)
+Base.:\(v::Number, u::PolyFitResult) = u / v
+
 function (res::PolyFitResult{N})(pos::Vararg{Any,N}) where N
     sizes = res.orders .+ 1
     lindices = LinearIndices(sizes)
