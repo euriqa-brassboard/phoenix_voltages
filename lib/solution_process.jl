@@ -6,6 +6,7 @@ import ..PolyFit
 using ..VoltageSolutions
 import ..gradient
 using NLsolve
+using LinearAlgebra
 
 struct FitCache{N,A<:AbstractArray{T,N} where T}
     fitter::PolyFit.PolyFitter{N}
@@ -471,11 +472,33 @@ function find_n_electrodes(solution::ConstraintSolution, pos, n)
     end
 end
 
+const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
+
+struct ElectrodesFitCache
+    fitter::PolyFit.PolyFitter{3}
+    solution::ConstraintSolution
+    cache::Vector{FitCache{3,_subarray_T}}
+    function ElectrodesFitCache(fitter::PolyFit.PolyFitter{3},
+                                solution::ConstraintSolution)
+        return new(fitter, solution,
+                   Vector{FitCache{3,_subarray_T}}(undef, solution.electrodes))
+    end
+end
+
+function Base.get(cache::ElectrodesFitCache, idx)
+    if isassigned(cache.cache, idx)
+        return cache.cache[idx]
+    end
+    fit_cache = FitCache(cache.fitter, @view cache.solution.data[:, :, :, idx])
+    cache.cache[idx] = fit_cache
+    return fit_cache
+end
+
 # Terms we care about
 # x, y, z, xy, yz, xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # Since we care about the symmetry of the x^2 and z^2 term,
 # we actually do need to scale the x, y and z correctly.
-function get_compensate_terms1(res::PolyFitResult{3}, stride)
+function get_compensate_terms1(res::PolyFit.PolyFitResult{3}, stride)
     # axis order of fitting result is z, y, x
     # axis order of stride is x, y, z
     raw_x = res[0, 0, 1]
@@ -514,6 +537,33 @@ function get_compensate_terms1(res::PolyFitResult{3}, stride)
     return (scaled_x, scaled_y, scaled_z,
             scaled_xy, scaled_yz, scaled_zx,
             zz, xx, scaled_x3, scaled_x4)
+end
+
+function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
+    nfits = length(fits)
+    coefficient = Matrix{Float64}(undef, 10, nfits)
+    for i in 1:nfits
+        coefficient[:, i] .= get_compensate_terms1(fits[i], stride)
+    end
+    X = coefficient \ I
+    @assert size(X, 2) == 10
+    return ntuple(i->X[:, i], Val(10))
+end
+
+function compensate_fitter1(solution::ConstraintSolution)
+    fitter = PolyFit.PolyFitter(2, 2, 4)
+    return ElectrodesFitCache(fitter, solution)
+end
+
+function get_compensate_terms1(cache::ElectrodesFitCache, pos)
+    # pos is in xyz index
+
+    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
+    ele_select = find_n_electrodes(cache.solution, x_coord, 10)
+    ele_select = sort!(collect(ele_select))
+    fits = [get(get(cache, e), pos) for e in ele_select]
+    # Change to um in unit
+    return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
 end
 
 end
