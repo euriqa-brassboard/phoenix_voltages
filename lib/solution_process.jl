@@ -549,7 +549,7 @@ function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
     for i in 1:nfits
         coefficient[:, i] .= get_compensate_terms1(fits[i], stride)
     end
-    X = coefficient \ I
+    X = coefficient \ Matrix(I, 10, 10)
     @assert size(X, 2) == 10
     return ntuple(i->X[:, i], Val(10))
 end
@@ -563,7 +563,7 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
-    ele_select = find_n_electrodes(cache.solution, x_coord, 10)
+    ele_select = find_n_electrodes(cache.solution, x_coord, 20)
     ele_select = sort!(collect(ele_select))
     fits = [get(get(cache, e), (pos[3], pos[2], pos[1])) for e in ele_select]
     # Change stride to um in unit
