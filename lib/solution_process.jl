@@ -51,13 +51,6 @@ function get_shifted(cache::FitCache{N}, pos::NTuple{N}) where N
     return PolyFit.shift(fit, pos .- orders ./ 2 .- idxs)
 end
 
-function Base.get(cache::FitCache{N}, idx::NTuple{N,Integer}) where N
-    if checkbounds(Bool, cache.cache, idx...)
-        return get_internal(cache, idx)
-    end
-    return get_shifted(cache, idx)
-end
-
 function Base.get(cache::FitCache{N}, idx::NTuple{N}) where N
     return get_shifted(cache, idx)
 end
