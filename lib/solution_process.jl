@@ -559,13 +559,13 @@ function compensate_fitter1(solution::ConstraintSolution)
     return ElectrodesFitCache(fitter, solution)
 end
 
-function get_compensate_terms1(cache::ElectrodesFitCache, pos)
+function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
     ele_select = find_n_electrodes(cache.solution, x_coord, 10)
     ele_select = sort!(collect(ele_select))
-    fits = [get(get(cache, e), pos) for e in ele_select]
+    fits = [get(get(cache, e), (pos[3], pos[2], pos[1])) for e in ele_select]
     # Change stride to um in unit
     return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
 end
