@@ -7,6 +7,7 @@ using ..VoltageSolutions
 import ..gradient
 using NLsolve
 using LinearAlgebra
+using DelimitedFiles
 
 struct FitCache{N,A<:AbstractArray{T,N} where T}
     fitter::PolyFit.PolyFitter{N}
@@ -599,6 +600,15 @@ function Base.get(tracker::CenterTracker, xidx)
     c_ub = xidx - lb_idx
     c_lb = ub_idx - xidx
     return y_lb * c_lb + y_ub * c_ub, z_lb * c_lb + z_ub * c_ub
+end
+
+function load_short_map(fname)
+    m = readdlm(fname, ',', String)
+    res = Dict{String,String}()
+    for i in 1:size(m, 1)
+        res[m[i, 1]] = m[i, 2]
+    end
+    return res
 end
 
 end
