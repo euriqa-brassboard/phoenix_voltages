@@ -579,4 +579,26 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
     return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
 end
 
+struct CenterTracker
+    zy_index::Matrix{Float64}
+end
+
+function Base.get(tracker::CenterTracker, xidx)
+    # return (y, z)
+    nx = size(tracker.zy_index, 1)
+    lb_idx = min(max(floor(Int, xidx), 1), nx)
+    ub_idx = min(max(ceil(Int, xidx), 1), nx)
+    y_lb = tracker.zy_index[lb_idx, 2]
+    z_lb = tracker.zy_index[lb_idx, 1]
+    if lb_idx == ub_idx
+        return y_lb, z_lb
+    end
+    @assert ub_idx == lb_idx + 1
+    y_ub = tracker.zy_index[ub_idx, 2]
+    z_ub = tracker.zy_index[ub_idx, 1]
+    c_ub = xidx - lb_idx
+    c_lb = ub_idx - xidx
+    return y_lb * c_lb + y_ub * c_ub, z_lb * c_lb + z_ub * c_ub
+end
+
 end
