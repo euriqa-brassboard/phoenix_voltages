@@ -5,6 +5,7 @@ module ProcessSolution
 import ..PolyFit
 using ..VoltageSolutions
 import ..gradient
+using ..OutputFiles
 using NLsolve
 using LinearAlgebra
 using DelimitedFiles
@@ -609,6 +610,74 @@ function load_short_map(fname)
         res[m[i, 1]] = m[i, 2]
     end
     return res
+end
+
+function _get_data_line(solution::ConstraintSolution, mapfile::MapFile,
+                        electrodes, term)
+    term_map = Dict(zip(electrodes, term))
+    nelectrodes = length(mapfile.names)
+    values = Vector{Float64}(undef, nelectrodes)
+    for i in 1:nelectrodes
+        id = get(solution.electrode_index, mapfile.names[i], -1)
+        values[i] = get(term_map, id, 0.0)
+    end
+    return values
+end
+
+function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
+                              electrodes, terms)
+    term_names = String[]
+    term_values = Vector{Float64}[]
+    nelectrodes = length(mapfile.names)
+    # DX
+    push!(term_names, "DX")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dx))
+    # DY
+    push!(term_names, "DY")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dy))
+    # DZ
+    push!(term_names, "DZ")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dz))
+    # QZY
+    push!(term_names, "QZY")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.yz))
+    # QZZ
+    push!(term_names, "QZZ")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.z2))
+    # QXZ
+    push!(term_names, "QXZ")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.zx))
+    # X1
+    # DX is in V/m, X1 is in 525 uV / 2.74 um
+    push!(term_names, "X1")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes,
+                                      terms.dx .* (525 / 2.74)))
+    # X2
+    push!(term_names, "X2")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.x2))
+    # X3
+    push!(term_names, "X3")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.x3))
+    # X4
+    push!(term_names, "X4")
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.x4))
+    # JunctionCenter
+    push!(term_names, "JunctionCenter")
+    push!(term_values, zeros(nelectrodes))
+    # JunctionTransition
+    push!(term_names, "JunctionTransition")
+    push!(term_values, zeros(nelectrodes))
+    # LoadInners
+    push!(term_names, "LoadInners")
+    push!(term_values, zeros(nelectrodes))
+    # LoadOuters
+    push!(term_names, "LoadOuters")
+    push!(term_values, zeros(nelectrodes))
+    # Eject
+    push!(term_names, "Eject")
+    push!(term_values, zeros(nelectrodes))
+
+    return CompensationFile(mapfile, term_names, term_values)
 end
 
 end
