@@ -487,6 +487,12 @@ function Base.get(cache::ElectrodesFitCache, idx)
     return fit_cache
 end
 
+Base.get(cache::ElectrodesFitCache, name::AbstractString) =
+    get(cache, cache.solution.electrode_index[name])
+
+Base.get(cache::ElectrodesFitCache, electrode, pos::NTuple{3}) =
+    get(get(cache, electrode), pos)
+
 # Terms we care about
 # x, y, z, xy, yz, xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # Since we care about the symmetry of the x^2 and z^2 term,
