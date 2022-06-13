@@ -105,8 +105,8 @@ end
 # In unit of 70um and showing only the even electrodes, the order/positions
 # of the electrodes are,
 
-# Outer: |                47(O0)              |22(Q44-64)|        14(O0)        |
-# Inner: |2(gap)|10(GND)|5(L0-8)|30(S10-0 x 5)|22(Q0-42) |6(S0-10)|6(GND)|2(gap)|
+# Outer: |                47(O0)              |22(Q44-64)|          14(O0)          |
+# Inner: |2(gap)|10(GND)|5(L0-8)|30(S10-0 x 5)|22(Q0-42) |8(S0-10,0-3)|6(GND)|2(gap)|
 
 # where the number outside the parenthesis is the width in unit of 70um
 # and the parenthesis marks the corresponding (even) electrode.
@@ -221,6 +221,17 @@ function __populate_positions()
                                     (pos_inner + 1) * unit_um, false))
             pos_inner += 1
         end
+    end
+
+    # S0-S3 appeared again at the end (shouldn't really matter......)
+    for i in 1:4
+        push!(inner_positions,
+              ElectrodePosition("S$(i * 2 - 2)", pos_inner * unit_um,
+                                (pos_inner + 1) * unit_um, true))
+        push!(inner_positions,
+              ElectrodePosition("S$(i * 2 - 1)", pos_inner * unit_um,
+                                (pos_inner + 1) * unit_um, false))
+        pos_inner += 1
     end
 
     # Outer 2
