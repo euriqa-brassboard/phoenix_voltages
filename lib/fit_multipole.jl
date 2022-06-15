@@ -7,10 +7,12 @@ import ..gradient
 # N dimensional multipole fitting
 struct PolyFitter{N}
     orders::NTuple{N,Int}
+    sizes::NTuple{N,Int}
     coefficient::Matrix{Float64}
     # center is the origin of the polynomial in index (1-based)
-    function PolyFitter(orders::Vararg{Integer,N}; center=orders ./ 2 .+ 1) where N
-        sizes = orders .+ 1
+    function PolyFitter(orders::Vararg{Integer,N};
+                        sizes=orders .+ 1, center=(sizes .+ 1) ./ 2) where N
+        @assert all(sizes .> orders)
         nterms = prod(sizes)
         coefficient = Matrix{Float64}(undef, nterms, nterms)
         lindices = LinearIndices(sizes)
@@ -25,7 +27,7 @@ struct PolyFitter{N}
                 coefficient[ipos, iorder] = prod(pos.^order)
             end
         end
-        return new{N}(orders, coefficient)
+        return new{N}(orders, sizes, coefficient)
     end
 end
 
