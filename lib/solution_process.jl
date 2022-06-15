@@ -17,7 +17,7 @@ struct FitCache{N,A<:AbstractArray{T,N} where T}
 end
 
 function FitCache(fitter::PolyFit.PolyFitter{N}, data::A) where (A<:AbstractArray{T,N} where T) where N
-    cache = Array{PolyFit.PolyFitResult{N},N}(undef, size(data) .- fitter.orders)
+    cache = Array{PolyFit.PolyFitResult{N},N}(undef, size(data) .- fitter.sizes .+ 1)
     return FitCache{N,A}(fitter, data, cache)
 end
 
@@ -25,46 +25,41 @@ function get_internal(cache::FitCache{N}, idx::NTuple{N,Integer}) where N
     if isassigned(cache.cache, idx...)
         return cache.cache[idx...]
     end
-    data = @view cache.data[((:).(idx, idx .+ cache.fitter.orders))...]
+    data = @view cache.data[((:).(idx, idx .+ cache.fitter.sizes .- 1))...]
     res = cache.fitter \ data
     cache.cache[idx...] = res
     return res
 end
 
 # pos is in index unit
-function _best_fit_idx(ntotal, order, pos)
-    # for fit at `index`, the data covered is `index:(index + order)`
-    # with the center at index `index + order / 2`.
-    # Therefore, the ideal index to use for `pos` is `pos - order / 2`
-    idx = round(Int, pos - order / 2)
+function _best_fit_idx(ntotal, kernel_size, pos)
+    # for fit at `index`, the data covered is `index:(index + kernel_size - 1)`
+    # with the center at index `index + (kernel_size - 1) / 2`.
+    # Therefore, the ideal index to use for `pos` is `pos - (kernel_size - 1) / 2`
+    idx = round(Int, pos - (kernel_size - 1) / 2)
     if idx <= 1
         return 1
-    elseif idx >= ntotal - order
-        return ntotal - order
+    elseif idx >= ntotal - (kernel_size - 1)
+        return ntotal - (kernel_size - 1)
     end
     return idx
 end
 
-function get_shifted(cache::FitCache{N}, pos::NTuple{N}) where N
-    sizes = size(cache.data)
-    orders = cache.fitter.orders
-    idxs = _best_fit_idx.(sizes, orders, pos)
+function Base.get(cache::FitCache{N}, pos::NTuple{N}) where N
+    kernel_sizes = cache.fitter.sizes
+    idxs = _best_fit_idx.(size(cache.data), kernel_sizes, pos)
     fit = get_internal(cache, idxs)
-    return PolyFit.shift(fit, pos .- orders ./ 2 .- idxs)
-end
-
-function Base.get(cache::FitCache{N}, idx::NTuple{N}) where N
-    return get_shifted(cache, idx)
+    return PolyFit.shift(fit, pos .- (kernel_sizes .- 1) ./ 2 .- idxs)
 end
 
 function gradient(cache::FitCache{N}, dim, pos::Vararg{Any,N}) where N
     sizes = size(cache.data)
-    orders = cache.fitter.orders
-    idxs = _best_fit_idx.(sizes, orders, pos)
+    kernel_sizes = cache.fitter.sizes
+    idxs = _best_fit_idx.(sizes, kernel_sizes, pos)
     fit = get_internal(cache, idxs)
-    # center of the fit in index: idx + order / 2
-    # position within fit: pos - idx - order / 2
-    pos = pos .- idxs .- orders ./ 2
+    # center of the fit in index: idx + (kernel_sizes .- 1) / 2
+    # position within fit: pos - idx - (kernel_sizes .- 1) / 2
+    pos = pos .- idxs .- (kernel_sizes .- 1) ./ 2
     return gradient(fit, dim, pos...)
 end
 
@@ -590,6 +585,11 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
     # Change stride to um in unit
     return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
+end
+
+function compensate_fitter1_2(solution::ConstraintSolution)
+    fitter = PolyFit.PolyFitter(2, 2, 4, sizes=(5, 5, 129))
+    return ElectrodesFitCache(fitter, solution)
 end
 
 struct CenterTracker

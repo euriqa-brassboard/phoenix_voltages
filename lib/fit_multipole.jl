@@ -13,17 +13,21 @@ struct PolyFitter{N}
     function PolyFitter(orders::Vararg{Integer,N};
                         sizes=orders .+ 1, center=(sizes .+ 1) ./ 2) where N
         @assert all(sizes .> orders)
-        nterms = prod(sizes)
-        coefficient = Matrix{Float64}(undef, nterms, nterms)
-        lindices = LinearIndices(sizes)
-        cindices = CartesianIndices(sizes)
+        nterms = prod(orders .+ 1)
+        npoints = prod(sizes)
+
+        coefficient = Matrix{Float64}(undef, npoints, nterms)
+        pos_lidxs = LinearIndices(sizes)
+        pos_cidxs = CartesianIndices(sizes)
+        ord_lidxs = LinearIndices(orders .+ 1)
+        ord_cidxs = CartesianIndices(orders .+ 1)
         # Index for position
-        for ipos in lindices
+        for ipos in pos_lidxs
             # Position of the point, with the origin in the middle of the grid.
-            pos = Tuple(cindices[ipos]) .- center
+            pos = Tuple(pos_cidxs[ipos]) .- center
             # Index for the polynomial order
-            for iorder in lindices
-                order = Tuple(cindices[iorder]) .- 1
+            for iorder in ord_lidxs
+                order = Tuple(ord_cidxs[iorder]) .- 1
                 coefficient[ipos, iorder] = prod(pos.^order)
             end
         end
