@@ -640,15 +640,17 @@ function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
     term_names = String[]
     term_values = Vector{Float64}[]
     nelectrodes = length(mapfile.names)
+    # For DX, DY, DZ the EURIQA frontend expects a different unit in the config file
+    # compared to the UI...
     # DX
     push!(term_names, "DX")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dx))
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dx) .* 1000)
     # DY
     push!(term_names, "DY")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dy))
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dy) .* 1000)
     # DZ
     push!(term_names, "DZ")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dz))
+    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dz) .* 1000)
     # QZY
     push!(term_names, "QZY")
     push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.yz))
