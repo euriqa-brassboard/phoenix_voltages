@@ -20,10 +20,10 @@ const short_map = ProcessSolution.load_short_map(
 const solution_file = ARGS[1]
 const solution = ProcessSolution.ConstraintSolution(
     VoltageSolutions.import_pillbox_64(solution_file), short_map)
-const fits_cache = ProcessSolution.compensate_fitter1(solution)
+const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
-const outputfile = ARGS[3]
+const outputdir = ARGS[3]
 
 function get_rf_center(xpos_um)
     xidx = ProcessSolution.x_axis_to_index(solution, xpos_um ./ 1000)
@@ -37,12 +37,11 @@ end
 
 const xpos_ums = -3220:1330
 const comp_terms = [get_compensate_terms1(xpos_um) for xpos_um in xpos_ums]
-const maxes = [maximum(abs.(term[2].x2)) for term in comp_terms]
+const comp_files = [ProcessSolution.compensation_to_file(solution, mapfile, term...)
+                    for term in comp_terms]
 
-plot(xpos_ums, maxes)
-NaCsPlot.maybe_show()
+mkpath(outputdir)
 
-# const compfile = ProcessSolution.compensation_to_file(solution, mapfile,
-#                                                       quantum_compensate...)
-
-# write_file(outputfile, compfile)
+for i in 1:length(xpos_ums)
+    write_file(joinpath(outputdir, "comp_$(xpos_ums[i])um.txt"), comp_files[i])
+end
