@@ -67,6 +67,27 @@ const comp_terms2 = [ProcessSolution.get_compensate_terms1(fit, solution.stride 
 # const comp_terms_sol1 = ProcessSolution.solve_terms1(comp_fits1, solution.stride .* 1000)
 # const comp_terms_sol2 = ProcessSolution.solve_terms1(comp_fits2, solution.stride .* 1000)
 
+function interpolate_fit(fit1, fit2, x)
+    return (dx=fit1.dx .* (1 - x) .+ fit2.dx .* x,
+            dy=fit1.dy .* (1 - x) .+ fit2.dy .* x,
+            dz=fit1.dz .* (1 - x) .+ fit2.dz .* x,
+
+            xy=fit1.xy .* (1 - x) .+ fit2.xy .* x,
+            yz=fit1.yz .* (1 - x) .+ fit2.yz .* x,
+            zx=fit1.zx .* (1 - x) .+ fit2.zx .* x,
+
+            z2=fit1.z2 .* (1 - x) .+ fit2.z2 .* x,
+            x2=fit1.x2 .* (1 - x) .+ fit2.x2 .* x,
+            x3=fit1.x3 .* (1 - x) .+ fit2.x3 .* x,
+            x4=fit1.x4 .* (1 - x) .+ fit2.x4 .* x)
+end
+
+function interpolate_fits(fits1, fits2, x)
+    return [interpolate_fit(fit1, fit2, x) for (fit1, fit2) in zip(fits1, fits2)]
+end
+
+interpolate_fits(x) = interpolate_fits(comp_terms1, comp_terms2, x)
+
 function solve_terms2(terms)
     nfits = length(terms)
     coefficient = Matrix{Float64}(undef, 10, nfits)
@@ -79,6 +100,8 @@ function solve_terms2(terms)
             xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
             z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10])
 end
+solve_interpolate(x) = solve_terms2(interpolate_fits(x))
+
 const comp_terms_sol1 = solve_terms2(comp_terms1)
 const comp_terms_sol2 = solve_terms2(comp_terms2)
 
@@ -89,6 +112,15 @@ const comp_terms_sol2 = solve_terms2(comp_terms2)
 @show maximum(abs.(comp_terms_sol1.x2))
 @show maximum(abs.(comp_terms_sol2.x2))
 
+@show maximum(abs.(solve_interpolate(0).x2))
+@show maximum(abs.(solve_interpolate(0.5).x2))
+@show maximum(abs.(solve_interpolate(1).x2))
+
+const interpolate_xs = range(-0.1, 1.1, 1000)
+
+figure()
+plot(interpolate_xs, [maximum(abs.(solve_interpolate(x).x2)) for x in interpolate_xs])
+
 # const comp_terms = [get_compensate_terms1(xpos_um) for xpos_um in xpos_ums]
 # for term in comp_terms
 #     println(join(get_all_names(term[1]), "."))
@@ -97,24 +129,3 @@ const comp_terms_sol2 = solve_terms2(comp_terms2)
 #                     for term in comp_terms]
 
 NaCsPlot.maybe_show()
-
-# function interpolate_fit(fit1, fit2, x)
-#     return (dx=fit1.dx .* (1 - x) .+ fit2.dx .* x,
-#             dy=fit1.dy .* (1 - x) .+ fit2.dy .* x,
-#             dz=fit1.dz .* (1 - x) .+ fit2.dz .* x,
-
-#             xy=fit1.xy .* (1 - x) .+ fit2.xy .* x,
-#             yz=fit1.yz .* (1 - x) .+ fit2.yz .* x,
-#             zx=fit1.zx .* (1 - x) .+ fit2.zx .* x,
-
-#             z2=fit1.z2 .* (1 - x) .+ fit2.z2 .* x,
-#             x2=fit1.x2 .* (1 - x) .+ fit2.x2 .* x,
-#             x3=fit1.x3 .* (1 - x) .+ fit2.x3 .* x,
-#             x4=fit1.x4 .* (1 - x) .+ fit2.x4 .* x)
-# end
-
-# function interpolate_fits(fits1, fits2, x)
-#     return [interpolate_fit(fit1, fit2, x) for (fit1, fit2) in zip(fits1, fits2)]
-# end
-
-# interpolate_fits(x) = interpolate_fits(comp_fits1, comp_fits2, x)
