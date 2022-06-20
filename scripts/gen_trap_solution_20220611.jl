@@ -20,7 +20,7 @@ const short_map = ProcessSolution.load_short_map(
 const solution_file = ARGS[1]
 const solution = ProcessSolution.ConstraintSolution(
     VoltageSolutions.import_pillbox_64(solution_file), short_map)
-const fits_cache = ProcessSolution.compensate_fitter1(solution)
+const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
 const outputfile = ARGS[3]
