@@ -60,8 +60,6 @@ end
 # # const xpos_ums = -1800:-1600
 const xpos_um1 = -1712
 const xpos_um2 = -1702
-const center1 = get_rf_center(xpos_um1)
-const center2 = get_rf_center(xpos_um2)
 
 const electrodes = ["S" .* string.(0:11); "O0"; "O1";
                     "Q44"; "Q45"; "Q0"; "Q1"; "Q2"; "Q3"]
@@ -73,40 +71,11 @@ const comp_fits2 = [get_compensate_fits1(xpos_um2, ele) for ele in electrode_ids
 const comp_terms_sol1 = ProcessSolution.solve_terms1(comp_fits1, solution.stride .* 1000)
 const comp_terms_sol2 = ProcessSolution.solve_terms1(comp_fits2, solution.stride .* 1000)
 
-# const comp_terms_sol1 = ProcessSolution.get_compensate_terms1(fits_cache, center1)[2]
-# const comp_terms_sol2 = ProcessSolution.get_compensate_terms1(fits_cache, center2)[2]
+# @show comp_terms_sol1
+# @show comp_terms_sol2
 
-# function get_compensate_terms2(cache, pos::NTuple{3})
-#     # pos is in xyz index
-
-#     x_coord = ProcessSolution.x_index_to_axis(cache.solution, pos[1]) .* 1000
-#     ele_select = ProcessSolution.find_n_electrodes(cache.solution, x_coord, 20)
-#     ele_select = sort!(collect(ele_select))
-#     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
-#     # Change stride to um in unit
-#     return ProcessSolution.solve_terms1(fits, cache.solution.stride .* 1000)
-# end
-
-# const comp_terms_sol1 = get_compensate_terms2(fits_cache, center1)
-# const comp_terms_sol2 = get_compensate_terms2(fits_cache, center2)
-
-# function get_compensate_terms2(pos::NTuple{3})
-#     # pos is in xyz index
-
-#     fits = [get(fits_cache, e, (pos[3], pos[2], pos[1])) for e in electrode_ids]
-#     # Change stride to um in unit
-#     return ProcessSolution.solve_terms1(fits, fits_cache.solution.stride .* 1000)
-# end
-
-# const comp_terms_sol1 = get_compensate_terms2(center1)
-# const comp_terms_sol2 = get_compensate_terms2(center2)
-
-@show comp_terms_sol1
-@show comp_terms_sol2
-
-@show maximum(abs.(comp_terms_sol1.xy)), maximum(abs.(comp_terms_sol1.yz)), maximum(abs.(comp_terms_sol1.zx)), maximum(abs.(comp_terms_sol1.x2)), maximum(abs.(comp_terms_sol1.z2))
-
-@show maximum(abs.(comp_terms_sol2.xy)), maximum(abs.(comp_terms_sol2.yz)), maximum(abs.(comp_terms_sol2.zx)), maximum(abs.(comp_terms_sol2.x2)), maximum(abs.(comp_terms_sol2.z2))
+@show maximum(abs.(comp_terms_sol1.x2))
+@show maximum(abs.(comp_terms_sol2.x2))
 
 # function normalize_1(ary)
 #     return ary ./ maximum(abs.(ary))
