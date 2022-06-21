@@ -659,7 +659,11 @@ function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
     push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.z2))
     # QXZ
     push!(term_names, "QXZ")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.zx))
+    if !hasproperty(terms, :zx)
+        push!(term_values, zeros(nelectrodes))
+    else
+        push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.zx))
+    end
     # X1
     # DX is in V/m, X1 is in 525 uV / 2.74 um
     push!(term_names, "X1")
