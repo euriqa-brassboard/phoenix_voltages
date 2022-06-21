@@ -380,7 +380,7 @@ Find exactly n electrodes that are the closest in axial (X) position to `pos`.
 
 The constraints from `solution` will be used to make sure
 """
-function find_n_electrodes(solution::ConstraintSolution, pos, n)
+function find_n_electrodes(solution::ConstraintSolution, pos, n; relaxed_num=false)
     nup = 0
     ndown = 0
     res = Set{Int}()
@@ -419,7 +419,7 @@ function find_n_electrodes(solution::ConstraintSolution, pos, n)
         end
         n_inner_up = length(inner_up)
         n_inner_down = length(inner_down)
-        if n_inner_up + n_inner_down <= nleft
+        if n_inner_up + n_inner_down <= nleft || relaxed_num
             nleft -= n_inner_up + n_inner_down
             nup += n_inner_up
             ndown += n_inner_down
@@ -580,7 +580,7 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
-    ele_select = find_n_electrodes(cache.solution, x_coord, 20)
+    ele_select = find_n_electrodes(cache.solution, x_coord, 20, relaxed_num=true)
     ele_select = sort!(collect(ele_select))
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
     # Change stride to um in unit
