@@ -693,4 +693,83 @@ function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
     return CompensationFile(mapfile, term_names, term_values)
 end
 
+# Terms we care about during transport
+# x, y, z, xy, yz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
+# zx is missing here since it seems to require a fairly high voltage to compensate
+# Since we care about the symmetry of the x^2 and z^2 term,
+# we actually do need to scale the x, y and z correctly.
+# stride should be in um, voltage should be in V
+function get_compensate_terms1_nozx(res::PolyFit.PolyFitResult{3}, stride)
+    # axis order of fitting result is z, y, x
+    # axis order of stride is x, y, z
+    raw_x = res[0, 0, 1]
+    raw_y = res[0, 1, 0]
+    raw_z = res[1, 0, 0]
+
+    raw_xy = res[0, 1, 1]
+    raw_yz = res[1, 1, 0]
+
+    raw_x2 = res[0, 0, 2]
+    raw_y2 = res[0, 2, 0]
+    raw_z2 = res[2, 0, 0]
+
+    raw_x3 = res[0, 0, 3]
+    raw_x4 = res[0, 0, 4]
+
+    scaled_x = raw_x / stride[1]
+    scaled_y = raw_y / stride[2]
+    scaled_z = raw_z / stride[3]
+
+    scaled_xy = raw_xy / stride[1] / stride[2]
+    scaled_yz = raw_yz / stride[2] / stride[3]
+
+    scaled_x2 = raw_x2 / stride[1]^2
+    scaled_y2 = raw_y2 / stride[2]^2
+    scaled_z2 = raw_z2 / stride[3]^2
+
+    scaled_x3 = raw_x3 / stride[1]^3
+    scaled_x4 = raw_x4 / stride[1]^4
+
+    xx = (scaled_x2 - scaled_y2 - scaled_z2) / 3
+    zz = (scaled_z2 - scaled_y2) / 2
+
+    # Current units are V/um^n
+    # Expected units
+    # DX/DY/DZ: V/m
+    # XY, YZ, ZZ, XX: 525 uV / (2.74 um)^2
+    # X3: 525 uV / (2.74 um)^3
+    # X4: 525 uV / (2.74 um)^4
+    scale_1 = 1e6
+    scale_2 = (2.74^2 / 525e-6)
+    scale_3 = (2.74^3 / 525e-6)
+    scale_4 = (2.74^4 / 525e-6)
+    return (dx=scaled_x * scale_1, dy=scaled_y * scale_1, dz=scaled_z * scale_1,
+            xy=scaled_xy * scale_2, yz=scaled_yz * scale_2,
+            z2=zz * scale_2, x2=xx * scale_2, x3=scaled_x3 * scale_3,
+            x4=scaled_x4 * scale_4)
+end
+
+function solve_terms1_nozx(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
+    nfits = length(fits)
+    coefficient = Matrix{Float64}(undef, 9, nfits)
+    for i in 1:nfits
+        coefficient[:, i] .= Tuple(get_compensate_terms1_nozx(fits[i], stride))
+    end
+    X = coefficient \ Matrix(I, 9, 9)
+    @assert size(X, 2) == 9
+    return (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
+            xy=X[:, 4], yz=X[:, 5], z2=X[:, 6], x2=X[:, 7], x3=X[:, 8], x4=X[:, 9])
+end
+
+function get_compensate_terms1_nozx(cache::ElectrodesFitCache, pos::NTuple{3})
+    # pos is in xyz index
+
+    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
+    ele_select = find_n_electrodes(cache.solution, x_coord, 20, relaxed_num=true)
+    ele_select = sort!(collect(ele_select))
+    fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
+    # Change stride to um in unit
+    return ele_select, solve_terms1_nozx(fits, cache.solution.stride .* 1000)
+end
+
 end
