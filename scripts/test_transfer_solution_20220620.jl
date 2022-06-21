@@ -65,9 +65,35 @@ function normalize_1(ary)
     return ary ./ maximum(abs.(ary))
 end
 
-figure(figsize=[6.4 * 3, 4.8 * 3])
-for (i, fld) in enumerate([:dx, :dy, :dz, :xy, :yz, :zx, :x3, :x4])
-    subplot(3, 3, i)
+# figure(figsize=[6.4 * 3, 4.8 * 3])
+# for (i, fld) in enumerate([:dx, :dy, :dz, :xy, :yz, :zx, :x3, :x4])
+#     subplot(3, 3, i)
+#     for (ele, terms) in zip(electrodes, comp_terms2)
+#         plot(xpos_ums, normalize_1([getfield(term, fld) / term.x2 for term in terms]),
+#              label=ele)
+#     end
+#     grid()
+#     axvline(-1702)
+#     legend(ncol=2, fontsize=8)
+#     title("$fld")
+# end
+
+# figure(figsize=[6.4 * 3, 4.8 * 3])
+# for (i, fld) in enumerate([:x2, :dx, :dy, :dz, :xy, :yz, :zx, :x3, :x4])
+#     subplot(3, 3, i)
+#     for (ele, terms) in zip(electrodes, comp_terms2)
+#         plot(xpos_ums, normalize_1([getfield(term, fld) for term in terms]),
+#              label=ele)
+#     end
+#     grid()
+#     axvline(-1702)
+#     legend(ncol=2, fontsize=8)
+#     title("$fld")
+# end
+
+figure(figsize=[6.4 * 2, 4.8 * 1])
+for (i, fld) in enumerate([:dx, :zx])
+    subplot(1, 2, i)
     for (ele, terms) in zip(electrodes, comp_terms2)
         plot(xpos_ums, normalize_1([getfield(term, fld) / term.x2 for term in terms]),
              label=ele)
@@ -78,9 +104,9 @@ for (i, fld) in enumerate([:dx, :dy, :dz, :xy, :yz, :zx, :x3, :x4])
     title("$fld")
 end
 
-figure(figsize=[6.4 * 3, 4.8 * 3])
-for (i, fld) in enumerate([:x2, :dx, :dy, :dz, :xy, :yz, :zx, :x3, :x4])
-    subplot(3, 3, i)
+figure(figsize=[6.4 * 2, 4.8 * 1])
+for (i, fld) in enumerate([:dx, :zx])
+    subplot(1, 2, i)
     for (ele, terms) in zip(electrodes, comp_terms2)
         plot(xpos_ums, normalize_1([getfield(term, fld) for term in terms]),
              label=ele)
