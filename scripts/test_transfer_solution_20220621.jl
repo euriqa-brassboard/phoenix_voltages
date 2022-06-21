@@ -33,8 +33,11 @@ function get_compensate_terms1_nozx(xpos_um)
     return ProcessSolution.get_compensate_terms1_nozx(fits_cache, get_rf_center(xpos_um))
 end
 
-const xpos_ums = -3220:1330
+const xpos_ums = -3080:35:1155
 const comp_terms = [get_compensate_terms1_nozx(xpos_um) for xpos_um in xpos_ums]
+
+const transfer_terms = [(term[2].x2 .+ term[2].yz) .* 0.25 for term in comp_terms]
+transfer_terms[1] = transfer_terms[1] .* 0.8
 
 figure()
 plot(xpos_ums, [maximum(abs.(term[2].dx)) * 1000 for term in comp_terms], label="dx")
@@ -48,6 +51,10 @@ for x in -3220:70:1330
     axvline(x)
 end
 legend()
+grid()
+
+figure()
+plot(xpos_ums, [maximum(abs.(term)) for term in transfer_terms])
 grid()
 
 figure()
