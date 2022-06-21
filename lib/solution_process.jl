@@ -623,16 +623,23 @@ function load_short_map(fname)
     return res
 end
 
-function _get_data_line(solution::ConstraintSolution, mapfile::MapFile,
-                        electrodes, term)
+function fill_data_line!(values, solution::ConstraintSolution, mapfile::MapFile,
+                         electrodes, term)
     term_map = Dict(zip(electrodes, term))
     nelectrodes = length(mapfile.names)
-    values = Vector{Float64}(undef, nelectrodes)
+    @assert length(values) == nelectrodes
     for i in 1:nelectrodes
         id = get(solution.electrode_index, mapfile.names[i], -1)
         values[i] = get(term_map, id, 0.0)
     end
     return values
+end
+
+function get_data_line(solution::ConstraintSolution, mapfile::MapFile,
+                       electrodes, term)
+    nelectrodes = length(mapfile.names)
+    return fill_data_line!(Vector{Float64}(undef, nelectrodes),
+                           solution, mapfile, electrodes, term)
 end
 
 function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
@@ -644,40 +651,40 @@ function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
     # compared to the UI...
     # DX
     push!(term_names, "DX")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dx) .* 1000)
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dx) .* 1000)
     # DY
     push!(term_names, "DY")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dy) .* 1000)
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dy) .* 1000)
     # DZ
     push!(term_names, "DZ")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.dz) .* 1000)
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dz) .* 1000)
     # QZY
     push!(term_names, "QZY")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.yz))
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.yz))
     # QZZ
     push!(term_names, "QZZ")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.z2))
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.z2))
     # QXZ
     push!(term_names, "QXZ")
     if !hasproperty(terms, :zx)
         push!(term_values, zeros(nelectrodes))
     else
-        push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.zx))
+        push!(term_values, get_data_line(solution, mapfile, electrodes, terms.zx))
     end
     # X1
     # DX is in V/m, X1 is in 525 uV / 2.74 um
     push!(term_names, "X1")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes,
-                                      terms.dx .* (525 / 2.74)))
+    push!(term_values, get_data_line(solution, mapfile, electrodes,
+                                     terms.dx .* (525 / 2.74)))
     # X2
     push!(term_names, "X2")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.x2))
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x2))
     # X3
     push!(term_names, "X3")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.x3))
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x3))
     # X4
     push!(term_names, "X4")
-    push!(term_values, _get_data_line(solution, mapfile, electrodes, terms.x4))
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x4))
     # JunctionCenter
     push!(term_names, "JunctionCenter")
     push!(term_values, zeros(nelectrodes))
