@@ -23,7 +23,7 @@ const solution = ProcessSolution.ConstraintSolution(
 const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
-const outputfile = ARGS[3]
+const outputdir = ARGS[3]
 
 function get_rf_center(xpos_um)
     xidx = ProcessSolution.x_axis_to_index(solution, xpos_um ./ 1000)
@@ -35,18 +35,13 @@ function get_compensate_terms1(xpos_um)
     return ProcessSolution.get_compensate_terms1_nozx(fits_cache, get_rf_center(xpos_um))
 end
 
-function get_transfer_line(term, s)
-    data = (term[2].x2 .+ term[2].yz) .* s
-    return ProcessSolution.get_data_line(solution, mapfile, term[1], data)
-end
-
-const xpos_ums = -3080:35:1155
-const scales = fill(0.25, length(xpos_ums))
-scales[1] = 0.2
+const xpos_ums = -3220:1330
 const comp_terms = [get_compensate_terms1(xpos_um) for xpos_um in xpos_ums]
-const lines = [get_transfer_line(term, s) for (term, s) in zip(comp_terms, scales)]
-push!(lines, zeros(length(mapfile.names)))
+const comp_files = [ProcessSolution.compensation_to_file(solution, mapfile, term...)
+                    for term in comp_terms]
 
-const transfer_file = TransferFile(mapfile, lines)
+mkpath(outputdir)
 
-write_file(outputfile, transfer_file)
+for i in 1:length(xpos_ums)
+    write_file(joinpath(outputdir, "comp_$(xpos_ums[i])um.txt"), comp_files[i])
+end
