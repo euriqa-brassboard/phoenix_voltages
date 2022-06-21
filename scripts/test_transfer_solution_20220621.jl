@@ -14,7 +14,9 @@ using MAT
 const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
     return ProcessSolution.CenterTracker(read(mat, "zy_index"))
 end
-const short_map = Dict{String,String}()
+const short_map = ProcessSolution.load_short_map(
+    joinpath(@__DIR__, "../data/electrode_short_202206.csv"))
+# const short_map = Dict{String,String}()
 
 const solution_file = ARGS[1]
 const solution = ProcessSolution.ConstraintSolution(
