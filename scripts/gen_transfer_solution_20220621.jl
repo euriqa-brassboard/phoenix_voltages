@@ -23,7 +23,7 @@ const solution = ProcessSolution.ConstraintSolution(
 const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
-const outputfile = ARGS[3]
+const outputprefix = ARGS[3]
 
 function get_rf_center(xpos_um)
     xidx = ProcessSolution.x_axis_to_index(solution, xpos_um ./ 1000)
@@ -41,12 +41,57 @@ function get_transfer_line(term, s)
 end
 
 const xpos_ums = -3080:35:1155
+const loading_pos_um = -3045
 const scales = fill(0.25, length(xpos_ums))
 scales[1] = 0.2
 const comp_terms = [get_compensate_terms1(xpos_um) for xpos_um in xpos_ums]
 const lines = [get_transfer_line(term, s) for (term, s) in zip(comp_terms, scales)]
-push!(lines, zeros(length(mapfile.names)))
+
+function pos_to_name(xpos_um)
+    if xpos_um == loading_pos_um
+        return "Loading"
+    elseif xpos_um == 0
+        return "Center"
+    else
+        return "$(xpos_um)um"
+    end
+end
+
+function generate_xml!(io)
+    local loading_line
+    found_center = false
+    # XML header
+    print(io, """
+<?xml version="1.0" ?>
+<VoltageAdjust>
+  <ShuttlingGraph>
+""")
+    npos = length(xpos_ums)
+    for i in 1:npos - 1
+        xpos_um = Int(xpos_ums[i])
+        name = pos_to_name(xpos_um)
+        name2 = pos_to_name(xpos_ums[i + 1])
+        if xpos_um == loading_pos_um
+            loading_line = lines[i]
+        elseif xpos_um == 0
+            found_center = true
+        end
+        println(io, "    <ShuttleEdge idleCount=\"500\" steps=\"100\" startLength=\"0\" stopLength=\"0\" startLine=\"$(i - 1)\" startName=\"$(name)\" stopLine=\"$(i)\" stopName=\"$(name2)\"/>")
+    end
+    @assert @isdefined(loading_line) && found_center
+    push!(lines, loading_line) # LoadingJump
+    push!(lines, loading_line) # Loading
+    push!(lines, zeros(length(mapfile.names))) # Zeros
+    println(io, "    <ShuttleEdge idleCount=\"500\" steps=\"5\" startLength=\"0\" stopLength=\"0\" startLine=\"$(npos)\" startName=\"LoadingJump\" stopLine=\"$(npos + 1)\" stopName=\"Loading\"/>")
+    println(io, "    <ShuttleEdge idleCount=\"500\" steps=\"5\" startLength=\"0\" stopLength=\"0\" startLine=\"$(npos + 1)\" startName=\"Loading\" stopLine=\"$(npos + 2)\" stopName=\"Zeros\"/>")
+    print(io, """
+  </ShuttlingGraph>
+</VoltageAdjust>
+""")
+end
+
+open(generate_xml!, "$(outputprefix).xml", "w")
 
 const transfer_file = TransferFile(mapfile, lines)
 
-write_file(outputfile, transfer_file)
+write_file("$(outputprefix).txt", transfer_file)
