@@ -6,6 +6,7 @@ import ..PolyFit
 using ..VoltageSolutions
 import ..gradient
 using ..OutputFiles
+using ..Optimizers
 using NLsolve
 using LinearAlgebra
 using DelimitedFiles
@@ -564,7 +565,8 @@ function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
     for i in 1:nfits
         coefficient[:, i] .= Tuple(get_compensate_terms1(fits[i], stride))
     end
-    X = coefficient \ Matrix(I, 10, 10)
+    # X = coefficient \ Matrix(I, 10, 10)
+    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 10, 10))
     @assert size(X, 2) == 10
     return (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
             xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
@@ -766,7 +768,8 @@ function solve_terms1_nozx(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
     for i in 1:nfits
         coefficient[:, i] .= Tuple(get_compensate_terms1_nozx(fits[i], stride))
     end
-    X = coefficient \ Matrix(I, 9, 9)
+    # X = coefficient \ Matrix(I, 9, 9)
+    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 9, 9))
     @assert size(X, 2) == 9
     return (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
             xy=X[:, 4], yz=X[:, 5], z2=X[:, 6], x2=X[:, 7], x3=X[:, 8], x4=X[:, 9])
