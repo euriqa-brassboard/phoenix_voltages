@@ -786,4 +786,28 @@ function get_compensate_terms1_nozx(cache::ElectrodesFitCache, pos::NTuple{3})
     return ele_select, solve_terms1_nozx(fits, cache.solution.stride .* 1000)
 end
 
+function solve_transfer1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
+    nfits = length(fits)
+    coefficient = Matrix{Float64}(undef, 9, nfits)
+    for i in 1:nfits
+        coefficient[:, i] .= Tuple(get_compensate_terms1_nozx(fits[i], stride))
+    end
+    y = zeros(9)
+    y[7] = 1 # X2
+    y[5] = 1 # YZ
+    # return coefficient \ y
+    return Optimizers.optimize_minmax(coefficient, y)
+end
+
+function get_transfer1(cache::ElectrodesFitCache, pos::NTuple{3})
+    # pos is in xyz index
+
+    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
+    ele_select = find_n_electrodes(cache.solution, x_coord, 20, relaxed_num=true)
+    ele_select = sort!(collect(ele_select))
+    fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
+    # Change stride to um in unit
+    return ele_select, solve_transfer1(fits, cache.solution.stride .* 1000)
+end
+
 end
