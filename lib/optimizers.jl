@@ -31,6 +31,7 @@ const model_cache = Dict{Tuple{Int,Int},LinearConstraintMinMaxModel}()
 function gen_fixed_minmax_model(A, y)
     ny, nx = size(A)
     @assert ny == length(y)
+    x = A \ y
 
     model = pop!(model_cache, (nx, ny), nothing)
     if model === nothing
@@ -41,6 +42,9 @@ function gen_fixed_minmax_model(A, y)
     end
     for i in 1:length(y)
         fix(model.y[i], y[i])
+    end
+    for i in 1:length(x)
+        set_start_value(model.x[i], x[i])
     end
     return model
 end
