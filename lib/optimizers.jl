@@ -45,13 +45,25 @@ function gen_fixed_minmax_model(A, y)
     return model
 end
 
-function optimize_minmax(A, y)
+function optimize_minmax(A, y::AbstractVector)
     model = gen_fixed_minmax_model(A, y)
     JuMP.optimize!(model.model)
     res = Float64[value(x) for x in model.x]
     ny, nx = size(A)
     model_cache[(nx, ny)] = model
     return res
+end
+
+function optimize_minmax(A, y::AbstractMatrix)
+    ny, nx = size(A)
+    @assert ny == size(y, 1)
+    ns = size(y, 2)
+
+    x = Matrix{Float64}(undef, nx, ns)
+    for i in 1:ns
+        x[:, i] .= optimize_minmax(A, @view(y[:, i]))
+    end
+    return x
 end
 
 end
