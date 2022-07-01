@@ -1,6 +1,6 @@
 module Optimizers
 
-using NLopt
+import NLopt
 using JuMP
 
 struct LinearConstraintMinMaxModel
@@ -10,10 +10,6 @@ struct LinearConstraintMinMaxModel
     y::Vector{VariableRef}
 end
 
-function minmax_objective(x...)
-    return max(abs.(x)...)
-end
-
 function gen_minmax_model_template(nx, ny)
     model = Model(NLopt.Optimizer)
     set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
@@ -21,8 +17,10 @@ function gen_minmax_model_template(nx, ny)
     @variable(model, y[1:ny])
     @variable(model, A[1:ny, 1:nx])
     @constraint(model, A * x .== y)
-    register(model, :minmax_objective, nx, minmax_objective, autodiff=true)
-    @NLobjective(model, Min, minmax_objective(x...))
+    @variable(model, maxv)
+    @constraint(model, maxv .>= x)
+    @constraint(model, maxv .>= .-x)
+    @objective(model, Min, maxv)
     return LinearConstraintMinMaxModel(model, A, x, y)
 end
 
