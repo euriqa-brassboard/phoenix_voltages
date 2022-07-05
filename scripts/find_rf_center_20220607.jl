@@ -33,7 +33,7 @@ const residual_grad = similar(centers)
 for i in 1:solution.nx
     data = solution.data[:, :, i, 2]
     fitter = Fitting.PolyFitter(3, 3)
-    cache = ProcessSolution.FitCache(fitter, data)
+    cache = Fitting.PolyFitCache(fitter, data)
     fit = get(cache, (centers[i, 1], centers[i, 2]))
     residual_grad[i, 1] = fit[1, 0]
     residual_grad[i, 2] = fit[0, 1]
