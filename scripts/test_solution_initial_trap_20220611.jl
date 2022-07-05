@@ -5,7 +5,7 @@ push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
 using PhoenixVoltages.Potentials
-using PhoenixVoltages.PolyFit
+using PhoenixVoltages.Fitting
 # using NaCsPlot
 # using PyPlot
 using MAT

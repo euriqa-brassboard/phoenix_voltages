@@ -1,6 +1,6 @@
 #!/usr/bin/julia
 
-module PolyFit
+module Fitting
 
 import ..gradient
 

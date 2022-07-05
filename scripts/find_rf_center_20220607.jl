@@ -5,7 +5,7 @@ push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
 using PhoenixVoltages.Potentials
-using PhoenixVoltages.PolyFit
+using PhoenixVoltages.Fitting
 using NaCsPlot
 using PyPlot
 using MAT
@@ -32,7 +32,7 @@ const residual_grad = similar(centers)
 # This is mainly a test for the shift function...
 for i in 1:solution.nx
     data = solution.data[:, :, i, 2]
-    fitter = PolyFit.PolyFitter(3, 3)
+    fitter = Fitting.PolyFitter(3, 3)
     cache = ProcessSolution.FitCache(fitter, data)
     fit = get(cache, (centers[i, 1], centers[i, 2]))
     residual_grad[i, 1] = fit[1, 0]

@@ -2,7 +2,7 @@
 
 module ProcessSolution
 
-import ..PolyFit
+import ..Fitting
 using ..Potentials
 import ..gradient
 using ..Outputs
@@ -12,13 +12,13 @@ using LinearAlgebra
 using DelimitedFiles
 
 struct FitCache{N,A<:AbstractArray{T,N} where T}
-    fitter::PolyFit.PolyFitter{N}
+    fitter::Fitting.PolyFitter{N}
     data::A
-    cache::Array{PolyFit.PolyFitResult{N},N}
+    cache::Array{Fitting.PolyFitResult{N},N}
 end
 
-function FitCache(fitter::PolyFit.PolyFitter{N}, data::A) where (A<:AbstractArray{T,N} where T) where N
-    cache = Array{PolyFit.PolyFitResult{N},N}(undef, size(data) .- fitter.sizes .+ 1)
+function FitCache(fitter::Fitting.PolyFitter{N}, data::A) where (A<:AbstractArray{T,N} where T) where N
+    cache = Array{Fitting.PolyFitResult{N},N}(undef, size(data) .- fitter.sizes .+ 1)
     return FitCache{N,A}(fitter, data, cache)
 end
 
@@ -50,7 +50,7 @@ function Base.get(cache::FitCache{N}, pos::NTuple{N}) where N
     kernel_sizes = cache.fitter.sizes
     idxs = _best_fit_idx.(size(cache.data), kernel_sizes, pos)
     fit = get_internal(cache, idxs)
-    return PolyFit.shift(fit, pos .- (kernel_sizes .- 1) ./ 2 .- idxs)
+    return Fitting.shift(fit, pos .- (kernel_sizes .- 1) ./ 2 .- idxs)
 end
 
 function gradient(cache::FitCache{N}, dim, pos::Vararg{Any,N}) where N
@@ -65,7 +65,7 @@ function gradient(cache::FitCache{N}, dim, pos::Vararg{Any,N}) where N
 end
 
 function find_flat_point(data::A; init=ntuple(i->(size(data, i) + 1) / 2, Val(N))) where (A<:AbstractArray{T,N} where T) where N
-    fitter = PolyFit.PolyFitter(ntuple(i->3, Val(N))...)
+    fitter = Fitting.PolyFitter(ntuple(i->3, Val(N))...)
     cache = FitCache(fitter, data)
     function model!(g, x)
         xt = ntuple(i->x[i], Val(N))
@@ -477,10 +477,10 @@ end
 const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
 
 struct ElectrodesFitCache
-    fitter::PolyFit.PolyFitter{3}
+    fitter::Fitting.PolyFitter{3}
     solution::ConstraintSolution
     cache::Vector{FitCache{3,_subarray_T}}
-    function ElectrodesFitCache(fitter::PolyFit.PolyFitter{3},
+    function ElectrodesFitCache(fitter::Fitting.PolyFitter{3},
                                 solution::ConstraintSolution)
         return new(fitter, solution,
                    Vector{FitCache{3,_subarray_T}}(undef, solution.electrodes))
@@ -507,7 +507,7 @@ Base.get(cache::ElectrodesFitCache, electrode, pos::NTuple{3}) =
 # Since we care about the symmetry of the x^2 and z^2 term,
 # we actually do need to scale the x, y and z correctly.
 # stride should be in um, voltage should be in V
-function get_compensate_terms1(res::PolyFit.PolyFitResult{3}, stride)
+function get_compensate_terms1(res::Fitting.PolyFitResult{3}, stride)
     # axis order of fitting result is z, y, x
     # axis order of stride is x, y, z
     raw_x = res[0, 0, 1]
@@ -559,7 +559,7 @@ function get_compensate_terms1(res::PolyFit.PolyFitResult{3}, stride)
             x4=scaled_x4 * scale_4)
 end
 
-function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
+function solve_terms1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
     nfits = length(fits)
     coefficient = Matrix{Float64}(undef, 10, nfits)
     for i in 1:nfits
@@ -574,7 +574,7 @@ function solve_terms1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
 end
 
 function compensate_fitter1(solution::ConstraintSolution)
-    fitter = PolyFit.PolyFitter(2, 2, 4)
+    fitter = Fitting.PolyFitter(2, 2, 4)
     return ElectrodesFitCache(fitter, solution)
 end
 
@@ -590,7 +590,7 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
 end
 
 function compensate_fitter1_2(solution::ConstraintSolution)
-    fitter = PolyFit.PolyFitter(2, 2, 4, sizes=(5, 5, 129))
+    fitter = Fitting.PolyFitter(2, 2, 4, sizes=(5, 5, 129))
     return ElectrodesFitCache(fitter, solution)
 end
 
@@ -712,7 +712,7 @@ end
 # Since we care about the symmetry of the x^2 and z^2 term,
 # we actually do need to scale the x, y and z correctly.
 # stride should be in um, voltage should be in V
-function get_compensate_terms1_nozx(res::PolyFit.PolyFitResult{3}, stride)
+function get_compensate_terms1_nozx(res::Fitting.PolyFitResult{3}, stride)
     # axis order of fitting result is z, y, x
     # axis order of stride is x, y, z
     raw_x = res[0, 0, 1]
@@ -762,7 +762,7 @@ function get_compensate_terms1_nozx(res::PolyFit.PolyFitResult{3}, stride)
             x4=scaled_x4 * scale_4)
 end
 
-function solve_terms1_nozx(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
+function solve_terms1_nozx(fits::Vector{Fitting.PolyFitResult{3}}, stride)
     nfits = length(fits)
     coefficient = Matrix{Float64}(undef, 9, nfits)
     for i in 1:nfits
@@ -786,7 +786,7 @@ function get_compensate_terms1_nozx(cache::ElectrodesFitCache, pos::NTuple{3})
     return ele_select, solve_terms1_nozx(fits, cache.solution.stride .* 1000)
 end
 
-function solve_transfer1(fits::Vector{PolyFit.PolyFitResult{3}}, stride)
+function solve_transfer1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
     nfits = length(fits)
     coefficient = Matrix{Float64}(undef, 9, nfits)
     for i in 1:nfits
