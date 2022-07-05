@@ -6,7 +6,7 @@ using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
 using PhoenixVoltages.VoltageSolutions
 using PhoenixVoltages.PolyFit
-using PhoenixVoltages.OutputFiles
+using PhoenixVoltages.Outputs
 # using NaCsPlot
 # using PyPlot
 using MAT

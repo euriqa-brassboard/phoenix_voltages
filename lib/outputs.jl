@@ -1,6 +1,9 @@
 #!/usr/bin/julia
 
-module OutputFiles
+"""
+Functions for processing the final output files for artiq
+"""
+module Outputs
 
 export MapFile, CompensationFile, TransferFile,
     load_file, write_file

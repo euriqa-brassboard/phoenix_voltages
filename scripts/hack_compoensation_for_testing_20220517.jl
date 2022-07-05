@@ -2,7 +2,7 @@
 
 push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
-using PhoenixVoltages.OutputFiles
+using PhoenixVoltages.Outputs
 
 const orig_comp_file = ARGS[1]
 const trans_file = ARGS[2]

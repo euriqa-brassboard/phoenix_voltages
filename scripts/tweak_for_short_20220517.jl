@@ -2,7 +2,7 @@
 
 push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
-using PhoenixVoltages.OutputFiles
+using PhoenixVoltages.Outputs
 
 # Electrode index eidx1 and eidx2 are shorted together and must have the same voltage
 # For line index <= lidx1, we'll use the voltage on eidx1 on both.

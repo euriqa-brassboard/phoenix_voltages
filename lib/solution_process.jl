@@ -5,7 +5,7 @@ module ProcessSolution
 import ..PolyFit
 using ..VoltageSolutions
 import ..gradient
-using ..OutputFiles
+using ..Outputs
 using ..Optimizers
 using NLsolve
 using LinearAlgebra
