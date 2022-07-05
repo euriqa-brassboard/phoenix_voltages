@@ -4,7 +4,7 @@ push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
 using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
-using PhoenixVoltages.VoltageSolutions
+using PhoenixVoltages.Potentials
 using PhoenixVoltages.PolyFit
 using NaCsPlot
 using PyPlot
@@ -14,7 +14,7 @@ const data_prefix = joinpath(@__DIR__, "../data/rf_center")
 const imgs_prefix = joinpath(@__DIR__, "../imgs/rf_center")
 
 const solution_file = ARGS[1]
-const solution = VoltageSolutions.import_pillbox_64(solution_file)
+const solution = Potentials.import_pillbox_64(solution_file)
 # RF is electrode 2 (ground is 1)
 const centers = ProcessSolution.find_all_flat_points(solution.data[:, :, :, 2])
 const centers_um = similar(centers)

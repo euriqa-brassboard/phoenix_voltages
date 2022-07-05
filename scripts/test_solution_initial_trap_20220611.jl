@@ -4,7 +4,7 @@ push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
 using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
-using PhoenixVoltages.VoltageSolutions
+using PhoenixVoltages.Potentials
 using PhoenixVoltages.PolyFit
 # using NaCsPlot
 # using PyPlot
@@ -16,7 +16,7 @@ end
 
 const solution_file = ARGS[1]
 const solution = ProcessSolution.ConstraintSolution(
-    VoltageSolutions.import_pillbox_64(solution_file), Dict{String,String}())
+    Potentials.import_pillbox_64(solution_file), Dict{String,String}())
 const fits_cache = ProcessSolution.compensate_fitter1(solution)
 
 const load_center_xidx = ProcessSolution.x_axis_to_index(solution, -3.045)

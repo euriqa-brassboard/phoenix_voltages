@@ -4,7 +4,7 @@ push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
 using PhoenixVoltages
 import PhoenixVoltages.ProcessSolution
-using PhoenixVoltages.VoltageSolutions
+using PhoenixVoltages.Potentials
 using PhoenixVoltages.PolyFit
 using PhoenixVoltages.Outputs
 using NaCsPlot
@@ -20,7 +20,7 @@ const short_map = Dict{String,String}()
 
 const solution_file = ARGS[1]
 const solution = ProcessSolution.ConstraintSolution(
-    VoltageSolutions.import_pillbox_64(solution_file), short_map)
+    Potentials.import_pillbox_64(solution_file), short_map)
 const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)

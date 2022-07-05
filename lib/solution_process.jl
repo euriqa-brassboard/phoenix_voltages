@@ -3,7 +3,7 @@
 module ProcessSolution
 
 import ..PolyFit
-using ..VoltageSolutions
+using ..Potentials
 import ..gradient
 using ..Outputs
 using ..Optimizers
@@ -253,8 +253,8 @@ struct ConstraintSolution
     electrode_names::Vector{Vector{String}}
 end
 
-function ConstraintSolution(raw::VoltageSolution, aliases::Dict{Int,Int})
-    origin_names = VoltageSolutions.electrode_names
+function ConstraintSolution(raw::Potential, aliases::Dict{Int,Int})
+    origin_names = Potentials.electrode_names
     # Compute the mapping between id's
     id_map = zeros(Int, raw.electrodes)
     id = 0
@@ -289,17 +289,17 @@ function ConstraintSolution(raw::VoltageSolution, aliases::Dict{Int,Int})
                               data, electrode_index, electrode_names)
 end
 
-function ConstraintSolution(raw::VoltageSolution, aliases::Dict{String,String})
-    mapping = VoltageSolutions.electrode_index
+function ConstraintSolution(raw::Potential, aliases::Dict{String,String})
+    mapping = Potentials.electrode_index
     return ConstraintSolution(raw, Dict(mapping[k]=>mapping[v] for (k, v) in aliases))
 end
 
 for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
     @eval begin
         export $(Symbol(name, "_index_to_axis"))
-        VoltageSolutions.$(Symbol(name, "_index_to_axis"))(sol::ConstraintSolution, i) = (i - 1) * sol.stride[$i] + sol.origin[$i]
+        Potentials.$(Symbol(name, "_index_to_axis"))(sol::ConstraintSolution, i) = (i - 1) * sol.stride[$i] + sol.origin[$i]
         export $(Symbol(name, "_axis_to_index"))
-        VoltageSolutions.$(Symbol(name, "_axis_to_index"))(sol::ConstraintSolution, a) = (a - sol.origin[$i]) / sol.stride[$i] + 1
+        Potentials.$(Symbol(name, "_axis_to_index"))(sol::ConstraintSolution, a) = (a - sol.origin[$i]) / sol.stride[$i] + 1
     end
 end
 
