@@ -142,118 +142,6 @@ function compensate_fitter1_2(solution::Potential)
     return Potentials.FitCache(fitter, solution)
 end
 
-struct CenterTracker
-    zy_index::Matrix{Float64}
-end
-
-function Base.get(tracker::CenterTracker, xidx)
-    # return (y, z)
-    nx = size(tracker.zy_index, 1)
-    lb_idx = min(max(floor(Int, xidx), 1), nx)
-    ub_idx = min(max(ceil(Int, xidx), 1), nx)
-    y_lb = tracker.zy_index[lb_idx, 2]
-    z_lb = tracker.zy_index[lb_idx, 1]
-    if lb_idx == ub_idx
-        return y_lb, z_lb
-    end
-    @assert ub_idx == lb_idx + 1
-    y_ub = tracker.zy_index[ub_idx, 2]
-    z_ub = tracker.zy_index[ub_idx, 1]
-    c_ub = xidx - lb_idx
-    c_lb = ub_idx - xidx
-    return y_lb * c_lb + y_ub * c_ub, z_lb * c_lb + z_ub * c_ub
-end
-
-function load_short_map(fname)
-    m = readdlm(fname, ',', String)
-    res = Dict{String,String}()
-    for i in 1:size(m, 1)
-        res[m[i, 1]] = m[i, 2]
-    end
-    return res
-end
-
-function fill_data_line!(values, solution::Potential, mapfile::MapFile,
-                         electrodes, term)
-    term_map = Dict(zip(electrodes, term))
-    nelectrodes = length(mapfile.names)
-    @assert length(values) == nelectrodes
-    for i in 1:nelectrodes
-        id = get(solution.electrode_index, mapfile.names[i], -1)
-        values[i] = get(term_map, id, 0.0)
-    end
-    return values
-end
-
-function get_data_line(solution::Potential, mapfile::MapFile,
-                       electrodes, term)
-    nelectrodes = length(mapfile.names)
-    return fill_data_line!(Vector{Float64}(undef, nelectrodes),
-                           solution, mapfile, electrodes, term)
-end
-
-function compensation_to_file(solution::Potential, mapfile::MapFile,
-                              electrodes, terms)
-    term_names = String[]
-    term_values = Vector{Float64}[]
-    nelectrodes = length(mapfile.names)
-    # For DX, DY, DZ the EURIQA frontend expects a different unit in the config file
-    # compared to the UI...
-    # DX
-    push!(term_names, "DX")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dx) .* 1000)
-    # DY
-    push!(term_names, "DY")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dy) .* 1000)
-    # DZ
-    push!(term_names, "DZ")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dz) .* 1000)
-    # QZY
-    push!(term_names, "QZY")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.yz))
-    # QZZ
-    push!(term_names, "QZZ")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.z2))
-    # QXZ
-    push!(term_names, "QXZ")
-    if !hasproperty(terms, :zx)
-        push!(term_values, zeros(nelectrodes))
-    else
-        push!(term_values, get_data_line(solution, mapfile, electrodes, terms.zx))
-    end
-    # X1
-    # DX is in V/m, X1 is in 525 uV / 2.74 um
-    push!(term_names, "X1")
-    push!(term_values, get_data_line(solution, mapfile, electrodes,
-                                     terms.dx .* (525 / 2.74)))
-    # X2
-    push!(term_names, "X2")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x2))
-    # X3
-    push!(term_names, "X3")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x3))
-    # X4
-    push!(term_names, "X4")
-    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x4))
-    # JunctionCenter
-    push!(term_names, "JunctionCenter")
-    push!(term_values, zeros(nelectrodes))
-    # JunctionTransition
-    push!(term_names, "JunctionTransition")
-    push!(term_values, zeros(nelectrodes))
-    # LoadInners
-    push!(term_names, "LoadInners")
-    push!(term_values, zeros(nelectrodes))
-    # LoadOuters
-    push!(term_names, "LoadOuters")
-    push!(term_values, zeros(nelectrodes))
-    # Eject
-    push!(term_names, "Eject")
-    push!(term_values, zeros(nelectrodes))
-
-    return CompensationFile(mapfile, term_names, term_values)
-end
-
 # Terms we care about during transport
 # x, y, z, 2xy, 2yz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # zx is missing here since it seems to require a fairly high voltage to compensate
@@ -367,6 +255,118 @@ function get_transfer1(cache::Potentials.FitCache, pos::NTuple{3})
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
     # Change stride to um in unit
     return ele_select, solve_transfer1(fits, cache.solution.stride .* 1000)
+end
+
+struct CenterTracker
+    zy_index::Matrix{Float64}
+end
+
+function Base.get(tracker::CenterTracker, xidx)
+    # return (y, z)
+    nx = size(tracker.zy_index, 1)
+    lb_idx = min(max(floor(Int, xidx), 1), nx)
+    ub_idx = min(max(ceil(Int, xidx), 1), nx)
+    y_lb = tracker.zy_index[lb_idx, 2]
+    z_lb = tracker.zy_index[lb_idx, 1]
+    if lb_idx == ub_idx
+        return y_lb, z_lb
+    end
+    @assert ub_idx == lb_idx + 1
+    y_ub = tracker.zy_index[ub_idx, 2]
+    z_ub = tracker.zy_index[ub_idx, 1]
+    c_ub = xidx - lb_idx
+    c_lb = ub_idx - xidx
+    return y_lb * c_lb + y_ub * c_ub, z_lb * c_lb + z_ub * c_ub
+end
+
+function load_short_map(fname)
+    m = readdlm(fname, ',', String)
+    res = Dict{String,String}()
+    for i in 1:size(m, 1)
+        res[m[i, 1]] = m[i, 2]
+    end
+    return res
+end
+
+function fill_data_line!(values, solution::Potential, mapfile::MapFile,
+                         electrodes, term)
+    term_map = Dict(zip(electrodes, term))
+    nelectrodes = length(mapfile.names)
+    @assert length(values) == nelectrodes
+    for i in 1:nelectrodes
+        id = get(solution.electrode_index, mapfile.names[i], -1)
+        values[i] = get(term_map, id, 0.0)
+    end
+    return values
+end
+
+function get_data_line(solution::Potential, mapfile::MapFile,
+                       electrodes, term)
+    nelectrodes = length(mapfile.names)
+    return fill_data_line!(Vector{Float64}(undef, nelectrodes),
+                           solution, mapfile, electrodes, term)
+end
+
+function compensation_to_file(solution::Potential, mapfile::MapFile,
+                              electrodes, terms)
+    term_names = String[]
+    term_values = Vector{Float64}[]
+    nelectrodes = length(mapfile.names)
+    # For DX, DY, DZ the EURIQA frontend expects a different unit in the config file
+    # compared to the UI...
+    # DX
+    push!(term_names, "DX")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dx) .* 1000)
+    # DY
+    push!(term_names, "DY")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dy) .* 1000)
+    # DZ
+    push!(term_names, "DZ")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.dz) .* 1000)
+    # QZY
+    push!(term_names, "QZY")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.yz))
+    # QZZ
+    push!(term_names, "QZZ")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.z2))
+    # QXZ
+    push!(term_names, "QXZ")
+    if !hasproperty(terms, :zx)
+        push!(term_values, zeros(nelectrodes))
+    else
+        push!(term_values, get_data_line(solution, mapfile, electrodes, terms.zx))
+    end
+    # X1
+    # DX is in V/m, X1 is in 525 uV / 2.74 um
+    push!(term_names, "X1")
+    push!(term_values, get_data_line(solution, mapfile, electrodes,
+                                     terms.dx .* (525 / 2.74)))
+    # X2
+    push!(term_names, "X2")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x2))
+    # X3
+    push!(term_names, "X3")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x3))
+    # X4
+    push!(term_names, "X4")
+    push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x4))
+    # JunctionCenter
+    push!(term_names, "JunctionCenter")
+    push!(term_values, zeros(nelectrodes))
+    # JunctionTransition
+    push!(term_names, "JunctionTransition")
+    push!(term_values, zeros(nelectrodes))
+    # LoadInners
+    push!(term_names, "LoadInners")
+    push!(term_values, zeros(nelectrodes))
+    # LoadOuters
+    push!(term_names, "LoadOuters")
+    push!(term_values, zeros(nelectrodes))
+    # Eject
+    push!(term_names, "Eject")
+    push!(term_values, zeros(nelectrodes))
+
+    return CompensationFile(mapfile, term_names, term_values)
 end
 
 end
