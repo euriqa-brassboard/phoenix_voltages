@@ -15,8 +15,7 @@ const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
 end
 
 const solution_file = ARGS[1]
-const solution = ProcessSolution.ConstraintSolution(
-    Potentials.import_pillbox_64(solution_file), Dict{String,String}())
+const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const fits_cache = ProcessSolution.compensate_fitter1(solution)
 
 const load_center_xidx = ProcessSolution.x_axis_to_index(solution, -3.045)

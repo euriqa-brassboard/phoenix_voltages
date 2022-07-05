@@ -17,8 +17,7 @@ const short_map = ProcessSolution.load_short_map(
     joinpath(@__DIR__, "../data/electrode_short_202206.csv"))
 
 const solution_file = ARGS[1]
-const solution = ProcessSolution.ConstraintSolution(
-    Potentials.import_pillbox_64(solution_file), short_map)
+const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const prefix = joinpath(@__DIR__, "../data/transfer_20220630")

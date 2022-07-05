@@ -37,76 +37,14 @@ function find_all_flat_points(all_data::A; init=ntuple(i->(size(all_data, i) + 1
     return all_res
 end
 
-struct ConstraintSolution
-    electrodes::Int
-    nx::Int
-    ny::Int
-    nz::Int
-    stride::NTuple{3,Float64}
-    origin::NTuple{3,Float64}
-    data::Array{Float64,4}
-    electrode_index::Dict{String,Int}
-    electrode_names::Vector{Vector{String}}
-end
-
-function ConstraintSolution(raw::Potential, aliases::Dict{Int,Int})
-    origin_names = Potentials.electrode_names
-    # Compute the mapping between id's
-    id_map = zeros(Int, raw.electrodes)
-    id = 0
-    new_electrodes = raw.electrodes - length(aliases)
-    data = Array{Float64}(undef, raw.nz, raw.ny, raw.nx, new_electrodes)
-    electrode_names = Vector{Vector{String}}(undef, new_electrodes)
-    electrode_index = Dict{String,Int}()
-    for i in 1:raw.electrodes
-        if i in keys(aliases)
-            continue
-        end
-        id += 1
-        id_map[i] = id
-        data[:, :, :, id] .= @view raw.data[:, :, :, i]
-        name = origin_names[i]
-        electrode_index[name] = id
-        electrode_names[id] = [name]
-    end
-    @assert new_electrodes == id
-    for (k, v) in aliases
-        # The user should connect directly to the final one
-        @assert !(v in keys(aliases))
-        id = id_map[v]
-        @assert id != 0
-        data[:, :, :, id] .= @view(data[:, :, :, id]) .+ @view(raw.data[:, :, :, k])
-        name = origin_names[k]
-        electrode_index[name] = id
-        push!(electrode_names[id], name)
-    end
-    return ConstraintSolution(new_electrodes, raw.nx, raw.ny, raw.nz,
-                              raw.stride, raw.origin,
-                              data, electrode_index, electrode_names)
-end
-
-function ConstraintSolution(raw::Potential, aliases::Dict{String,String})
-    mapping = Potentials.electrode_index
-    return ConstraintSolution(raw, Dict(mapping[k]=>mapping[v] for (k, v) in aliases))
-end
-
-for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
-    @eval begin
-        export $(Symbol(name, "_index_to_axis"))
-        Potentials.$(Symbol(name, "_index_to_axis"))(sol::ConstraintSolution, i) = (i - 1) * sol.stride[$i] + sol.origin[$i]
-        export $(Symbol(name, "_axis_to_index"))
-        Potentials.$(Symbol(name, "_axis_to_index"))(sol::ConstraintSolution, a) = (a - sol.origin[$i]) / sol.stride[$i] + 1
-    end
-end
-
 const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
 
 struct ElectrodesFitCache
     fitter::Fitting.PolyFitter{3}
-    solution::ConstraintSolution
+    solution::Potential
     cache::Vector{Fitting.PolyFitCache{3,_subarray_T}}
     function ElectrodesFitCache(fitter::Fitting.PolyFitter{3},
-                                solution::ConstraintSolution)
+                                solution::Potential)
         return new(fitter, solution,
                    Vector{Fitting.PolyFitCache{3,_subarray_T}}(undef, solution.electrodes))
     end
@@ -198,7 +136,7 @@ function solve_terms1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
             z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10])
 end
 
-function compensate_fitter1(solution::ConstraintSolution)
+function compensate_fitter1(solution::Potential)
     fitter = Fitting.PolyFitter(2, 2, 4)
     return ElectrodesFitCache(fitter, solution)
 end
@@ -215,7 +153,7 @@ function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
     return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
 end
 
-function compensate_fitter1_2(solution::ConstraintSolution)
+function compensate_fitter1_2(solution::Potential)
     fitter = Fitting.PolyFitter(2, 2, 4, sizes=(5, 5, 129))
     return ElectrodesFitCache(fitter, solution)
 end
@@ -251,7 +189,7 @@ function load_short_map(fname)
     return res
 end
 
-function fill_data_line!(values, solution::ConstraintSolution, mapfile::MapFile,
+function fill_data_line!(values, solution::Potential, mapfile::MapFile,
                          electrodes, term)
     term_map = Dict(zip(electrodes, term))
     nelectrodes = length(mapfile.names)
@@ -263,14 +201,14 @@ function fill_data_line!(values, solution::ConstraintSolution, mapfile::MapFile,
     return values
 end
 
-function get_data_line(solution::ConstraintSolution, mapfile::MapFile,
+function get_data_line(solution::Potential, mapfile::MapFile,
                        electrodes, term)
     nelectrodes = length(mapfile.names)
     return fill_data_line!(Vector{Float64}(undef, nelectrodes),
                            solution, mapfile, electrodes, term)
 end
 
-function compensation_to_file(solution::ConstraintSolution, mapfile::MapFile,
+function compensation_to_file(solution::Potential, mapfile::MapFile,
                               electrodes, terms)
     term_names = String[]
     term_values = Vector{Float64}[]

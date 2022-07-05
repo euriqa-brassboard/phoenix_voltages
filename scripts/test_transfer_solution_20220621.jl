@@ -19,8 +19,7 @@ const short_map = ProcessSolution.load_short_map(
 # const short_map = Dict{String,String}()
 
 const solution_file = ARGS[1]
-const solution = ProcessSolution.ConstraintSolution(
-    Potentials.import_pillbox_64(solution_file), short_map)
+const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
