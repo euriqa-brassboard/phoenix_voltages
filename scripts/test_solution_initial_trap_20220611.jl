@@ -3,7 +3,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
 using PhoenixVoltages
-import PhoenixVoltages.ProcessSolution
+import PhoenixVoltages.Solutions
 using PhoenixVoltages.Potentials
 using PhoenixVoltages.Fitting
 # using NaCsPlot
@@ -11,14 +11,14 @@ using PhoenixVoltages.Fitting
 using MAT
 
 const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
-    return ProcessSolution.CenterTracker(read(mat, "zy_index"))
+    return Solutions.CenterTracker(read(mat, "zy_index"))
 end
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const fits_cache = ProcessSolution.compensate_fitter1(solution)
+const fits_cache = Solutions.compensate_fitter1(solution)
 
-const load_center_xidx = ProcessSolution.x_axis_to_index(solution, -3.045)
+const load_center_xidx = Solutions.x_axis_to_index(solution, -3.045)
 const load_center_posidx = (load_center_xidx, get(centers, load_center_xidx)...)
 
 # (176.00000000000026, 5.535493109145054, 9.640018584312939)
@@ -82,18 +82,18 @@ end
 #  zx = -0.0017446592745199176, z2 = -0.1868639707506263, x2 = 0.6638776755488908,
 #  x3 = 8.405660805439246e-6, x4 = 0.00010237616852424318)
 const fit_x2 = get_x2_fit(load_center_posidx)
-@show ProcessSolution.get_compensate_terms1(fit_x2, solution.stride .* 1000)
+@show Solutions.get_compensate_terms1(fit_x2, solution.stride .* 1000)
 
 # (dx = -0.10318868486773158, dy = 0.799257254256326, dz = -10.660438957532131,
 #  xy = -4.20022908654545e-6, yz = -0.19738174779634746,
 #  zx = 0.00034145534549278494, z2 = 0.003047748416465513, x2 = 0.0004781770925519853,
 #  x3 = 1.6889317230326049e-6, x4 = -1.5760966430845064e-5)
 const fit_yz = get_yz_fit(load_center_posidx)
-@show ProcessSolution.get_compensate_terms1(fit_yz, solution.stride .* 1000)
+@show Solutions.get_compensate_terms1(fit_yz, solution.stride .* 1000)
 
 # (dx = -3.420749586119952, dy = -6.044868085757676, dz = -999.8853408917083,
 #  xy = 3.0195747514106137e-5, yz = -0.00027013902460357273,
 #  zx = -0.0005365010579121651, z2 = 0.06070376179195097, x2 = 7.924978702025439e-5,
 #  x3 = 2.2192028883793418e-7, x4 = 4.140523041832714e-5)
 const fit_dz = get_dz_fit(load_center_posidx)
-@show ProcessSolution.get_compensate_terms1(fit_dz, solution.stride .* 1000)
+@show Solutions.get_compensate_terms1(fit_dz, solution.stride .* 1000)

@@ -1,6 +1,9 @@
 #!/usr/bin/julia
 
-module ProcessSolution
+"""
+Tools to find voltage solutions (in terms of voltages on the electrodes)
+"""
+module Solutions
 
 import ..Mappings
 import ..Fitting

@@ -3,7 +3,7 @@
 push!(LOAD_PATH, joinpath(@__DIR__, "../lib"))
 
 using PhoenixVoltages
-import PhoenixVoltages.ProcessSolution
+import PhoenixVoltages.Solutions
 using PhoenixVoltages.Potentials
 using PhoenixVoltages.Fitting
 using PhoenixVoltages.Outputs
@@ -14,24 +14,24 @@ using LsqFit
 using LinearAlgebra
 
 const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
-    return ProcessSolution.CenterTracker(read(mat, "zy_index"))
+    return Solutions.CenterTracker(read(mat, "zy_index"))
 end
 const short_map = Dict{String,String}()
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const fits_cache = ProcessSolution.compensate_fitter1_2(solution)
+const fits_cache = Solutions.compensate_fitter1_2(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
 
 function get_rf_center(xpos_um)
-    xidx = ProcessSolution.x_axis_to_index(solution, xpos_um ./ 1000)
+    xidx = Solutions.x_axis_to_index(solution, xpos_um ./ 1000)
     return (xidx, get(centers, xidx)...)
 end
 
 function get_compensate_terms1(xpos_um)
     @show xpos_um
-    return ProcessSolution.get_compensate_terms1(fits_cache, get_rf_center(xpos_um))
+    return Solutions.get_compensate_terms1(fits_cache, get_rf_center(xpos_um))
 end
 
 function get_compensate_fits1(xpos_um, electrode)
@@ -57,7 +57,7 @@ const electrode_ids = sort!(unique(getindex.(Ref(solution.electrode_index),
 const comp_fits2 = [[get_compensate_fits1(xpos_um, ele) for xpos_um in xpos_ums]
                     for ele in electrode_ids]
 
-const comp_terms2 = [[ProcessSolution.get_compensate_terms1(
+const comp_terms2 = [[Solutions.get_compensate_terms1(
     fit, solution.stride .* 1000) for fit in fits] for fits in comp_fits2]
 
 function normalize_1(ary)

@@ -9,6 +9,6 @@ include("outputs.jl")
 include("potentials.jl")
 include("fitting.jl")
 include("optimizers.jl")
-include("solution_process.jl")
+include("solutions.jl")
 
 end
