@@ -40,34 +40,6 @@ function find_all_flat_points(all_data::A; init=ntuple(i->(size(all_data, i) + 1
     return all_res
 end
 
-const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
-
-struct ElectrodesFitCache
-    fitter::Fitting.PolyFitter{3}
-    solution::Potential
-    cache::Vector{Fitting.PolyFitCache{3,_subarray_T}}
-    function ElectrodesFitCache(fitter::Fitting.PolyFitter{3},
-                                solution::Potential)
-        return new(fitter, solution,
-                   Vector{Fitting.PolyFitCache{3,_subarray_T}}(undef, solution.electrodes))
-    end
-end
-
-function Base.get(cache::ElectrodesFitCache, idx)
-    if isassigned(cache.cache, idx)
-        return cache.cache[idx]
-    end
-    fit_cache = Fitting.PolyFitCache(cache.fitter, @view cache.solution.data[:, :, :, idx])
-    cache.cache[idx] = fit_cache
-    return fit_cache
-end
-
-Base.get(cache::ElectrodesFitCache, name::AbstractString) =
-    get(cache, cache.solution.electrode_index[name])
-
-Base.get(cache::ElectrodesFitCache, electrode, pos::NTuple{3}) =
-    get(get(cache, electrode), pos)
-
 # Terms we care about
 # x, y, z, xy, yz, xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # Since we care about the symmetry of the x^2 and z^2 term,
@@ -141,10 +113,10 @@ end
 
 function compensate_fitter1(solution::Potential)
     fitter = Fitting.PolyFitter(2, 2, 4)
-    return ElectrodesFitCache(fitter, solution)
+    return Potentials.FitCache(fitter, solution)
 end
 
-function get_compensate_terms1(cache::ElectrodesFitCache, pos::NTuple{3})
+function get_compensate_terms1(cache::Potentials.FitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
@@ -158,7 +130,7 @@ end
 
 function compensate_fitter1_2(solution::Potential)
     fitter = Fitting.PolyFitter(2, 2, 4, sizes=(5, 5, 129))
-    return ElectrodesFitCache(fitter, solution)
+    return Potentials.FitCache(fitter, solution)
 end
 
 struct CenterTracker
@@ -342,7 +314,7 @@ function solve_terms1_nozx(fits::Vector{Fitting.PolyFitResult{3}}, stride)
             xy=X[:, 4], yz=X[:, 5], z2=X[:, 6], x2=X[:, 7], x3=X[:, 8], x4=X[:, 9])
 end
 
-function get_compensate_terms1_nozx(cache::ElectrodesFitCache, pos::NTuple{3})
+function get_compensate_terms1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
@@ -367,7 +339,7 @@ function solve_transfer1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
     return Optimizers.optimize_minmax(coefficient, y)
 end
 
-function get_transfer1(cache::ElectrodesFitCache, pos::NTuple{3})
+function get_transfer1(cache::Potentials.FitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000

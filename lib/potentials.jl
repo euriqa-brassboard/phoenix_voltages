@@ -2,6 +2,8 @@
 
 module Potentials
 
+import ..Fitting
+
 struct RawPotential
     electrodes::Int
     nx::Int
@@ -159,10 +161,10 @@ for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
 end
 
 const raw_electrode_names = ["GND"; "RF";
-                         "L" .* string.(0:9);
-                         "O" .* string.(0:1);
-                         "Q" .* string.(0:65);
-                         "S" .* string.(0:11);]
+                             "L" .* string.(0:9);
+                             "O" .* string.(0:1);
+                             "Q" .* string.(0:65);
+                             "S" .* string.(0:11);]
 const raw_electrode_index = Dict{String,Int}()
 for i in 1:length(raw_electrode_names)
     raw_electrode_index[raw_electrode_names[i]] = i
@@ -242,5 +244,32 @@ end
 function import_pillbox_64(filename; aliases=Dict{Int,Int}())
     return Potential(import_pillbox_64_raw(filename), aliases)
 end
+
+const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
+
+struct FitCache
+    fitter::Fitting.PolyFitter{3}
+    solution::Potential
+    cache::Vector{Fitting.PolyFitCache{3,_subarray_T}}
+    function FitCache(fitter::Fitting.PolyFitter{3}, solution::Potential)
+        return new(fitter, solution,
+                   Vector{Fitting.PolyFitCache{3,_subarray_T}}(undef, solution.electrodes))
+    end
+end
+
+function Base.get(cache::FitCache, idx)
+    if isassigned(cache.cache, idx)
+        return cache.cache[idx]
+    end
+    fit_cache = Fitting.PolyFitCache(cache.fitter, @view cache.solution.data[:, :, :, idx])
+    cache.cache[idx] = fit_cache
+    return fit_cache
+end
+
+Base.get(cache::FitCache, name::AbstractString) =
+    get(cache, cache.solution.electrode_index[name])
+
+Base.get(cache::FitCache, electrode, pos::NTuple{3}) =
+    get(get(cache, electrode), pos)
 
 end
