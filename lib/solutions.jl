@@ -41,7 +41,7 @@ function find_all_flat_points(all_data::A; init=ntuple(i->(size(all_data, i) + 1
 end
 
 # Terms we care about
-# x, y, z, xy, yz, xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
+# x, y, z, 2xy, 2yz, 2xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # Since we care about the symmetry of the x^2 and z^2 term,
 # we actually do need to scale the x, y and z correctly.
 # stride should be in um, voltage should be in V
@@ -67,9 +67,11 @@ function get_compensate_terms1(res::Fitting.PolyFitResult{3}, stride)
     scaled_y = raw_y / stride[2]
     scaled_z = raw_z / stride[3]
 
-    scaled_xy = raw_xy / stride[1] / stride[2]
-    scaled_yz = raw_yz / stride[2] / stride[3]
-    scaled_zx = raw_zx / stride[3] / stride[1]
+    # The actual term is 2xy, 2yz, 2zx in order to match the magnitude
+    # with the xx and zz terms.
+    scaled_xy = raw_xy / stride[1] / stride[2] / 2
+    scaled_yz = raw_yz / stride[2] / stride[3] / 2
+    scaled_zx = raw_zx / stride[3] / stride[1] / 2
 
     scaled_x2 = raw_x2 / stride[1]^2
     scaled_y2 = raw_y2 / stride[2]^2
@@ -78,7 +80,14 @@ function get_compensate_terms1(res::Fitting.PolyFitResult{3}, stride)
     scaled_x3 = raw_x3 / stride[1]^3
     scaled_x4 = raw_x4 / stride[1]^4
 
-    xx = (scaled_x2 - scaled_y2 - scaled_z2) / 3
+    # The two legal quadratic terms are `x^2 - (y^2 + z^2) / 2` and `z^2 - y^2`
+    # which are also orthogonal to each other.
+    # The orthogonal illegal term is `x^2 + y^2 + z^2`.
+    # Here we just need to find the transfermation to go from the taylor expansion
+    # basis to the new basis.
+    # Since the three terms are orthogonal, we can just compute the dot product
+    # with these three terms and apply the correct normalization coefficient.
+    xx = (2 * scaled_x2 - scaled_y2 - scaled_z2) / 3
     zz = (scaled_z2 - scaled_y2) / 2
 
     # Current units are V/um^n
@@ -246,7 +255,7 @@ function compensation_to_file(solution::Potential, mapfile::MapFile,
 end
 
 # Terms we care about during transport
-# x, y, z, xy, yz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
+# x, y, z, 2xy, 2yz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # zx is missing here since it seems to require a fairly high voltage to compensate
 # Since we care about the symmetry of the x^2 and z^2 term,
 # we actually do need to scale the x, y and z correctly.
@@ -272,8 +281,10 @@ function get_compensate_terms1_nozx(res::Fitting.PolyFitResult{3}, stride)
     scaled_y = raw_y / stride[2]
     scaled_z = raw_z / stride[3]
 
-    scaled_xy = raw_xy / stride[1] / stride[2]
-    scaled_yz = raw_yz / stride[2] / stride[3]
+    # The actual term is 2xy, 2yz in order to match the magnitude
+    # with the xx and zz terms.
+    scaled_xy = raw_xy / stride[1] / stride[2] / 2
+    scaled_yz = raw_yz / stride[2] / stride[3] / 2
 
     scaled_x2 = raw_x2 / stride[1]^2
     scaled_y2 = raw_y2 / stride[2]^2
@@ -282,7 +293,14 @@ function get_compensate_terms1_nozx(res::Fitting.PolyFitResult{3}, stride)
     scaled_x3 = raw_x3 / stride[1]^3
     scaled_x4 = raw_x4 / stride[1]^4
 
-    xx = (scaled_x2 - scaled_y2 - scaled_z2) / 3
+    # The two legal quadratic terms are `x^2 - (y^2 + z^2) / 2` and `z^2 - y^2`
+    # which are also orthogonal to each other.
+    # The orthogonal illegal term is `x^2 + y^2 + z^2`.
+    # Here we just need to find the transfermation to go from the taylor expansion
+    # basis to the new basis.
+    # Since the three terms are orthogonal, we can just compute the dot product
+    # with these three terms and apply the correct normalization coefficient.
+    xx = (2 * scaled_x2 - scaled_y2 - scaled_z2) / 3
     zz = (scaled_z2 - scaled_y2) / 2
 
     # Current units are V/um^n
