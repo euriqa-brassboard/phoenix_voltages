@@ -47,6 +47,15 @@ function gen_fixed_minmax_model(B, x0)
     return model
 end
 
+function optimize_minmax_span(B, x0)
+    model = gen_fixed_minmax_model(B, x0)
+    JuMP.optimize!(model.model)
+    t = Float64[value(t) for t in model.t]
+    nx, nt = size(B)
+    model_cache[(nx, nt)] = model
+    return B * t .+ x0
+end
+
 function optimize_minmax(A, y::AbstractVector)
     x0 = A \ y
     ny, nx = size(A)
@@ -62,8 +71,8 @@ function optimize_minmax(A, y::AbstractVector)
     model = gen_fixed_minmax_model(B, x0)
     JuMP.optimize!(model.model)
     t = Float64[value(t) for t in model.t]
-    ny, nx = size(A)
-    model_cache[(nx, ny)] = model
+    nx, nt = size(B)
+    model_cache[(nx, nt)] = model
     return B * t .+ x0
 end
 
