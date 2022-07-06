@@ -13,16 +13,18 @@ end
 
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220705")
 
-function solve_all()
+function solve_all(diff_weight)
+    @show diff_weight
     model = Model(Ipopt.Optimizer)
-    set_optimizer_attribute(model, "max_cpu_time", 600.0)
-    set_optimizer_attribute(model, "print_level", 1)
+    set_optimizer_attribute(model, "max_cpu_time", 3600.0)
+    set_optimizer_attribute(model, "print_level", 5)
     xs = Vector{AffExpr}[]
     maxvs = VariableRef[]
     maxdiffs = VariableRef[]
     local prev_vmap
+    @variable(model, maxmaxdiff)
+    maxmaxweight = 0
     for data in coeff_data
-        println("Adding $(data["xpos_um"])")
         solution = data["solution"]
         x0 = solution[:, 7] .+ solution[:, 5] .* 0.75
         B = data["free_solution"]
@@ -45,24 +47,27 @@ function solve_all()
                 @constraint(model, maxdiff >= v2 - v1)
             end
             push!(maxdiffs, maxdiff)
+            if -3050 < data["xpos_um"] < 1130
+                @constraint(model, maxmaxdiff >= maxdiff)
+                maxmaxweight += 1
+            end
         end
         prev_vmap = vmap
     end
-    @objective(model, Min, sum(maxvs) + sum(maxdiffs) * 0.1)
+    @objective(model, Min, sum(maxvs) + sum(maxdiffs) * diff_weight + maxmaxdiff * (maxmaxweight))
     JuMP.optimize!(model)
     return [[value(v) for v in x] for x in xs]
 end
-
-const values = @time(solve_all())
 
 function pack_data(data, vals)
     solution = data["solution"]
     return Dict("electrodes"=>data["electrodes"], "voltages"=>vals,
                 "xpos_um"=>data["xpos_um"])
 end
-const transfer_solutions = [pack_data(data, vals)
-                            for (data, vals) in zip(coeff_data, values)]
 
+const voltages = @time(solve_all(0.05))
+const transfer_solutions = [pack_data(data, vals) for (data, vals)
+                                in zip(coeff_data, voltages)]
 matopen("$(prefix).mat", "w") do mat
     write(mat, "electrode_names", electrode_names)
     write(mat, "transfer_solutions", transfer_solutions)
