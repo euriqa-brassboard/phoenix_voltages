@@ -430,7 +430,7 @@ function _find_next_distance!(state::ElectrodeSearchState)
         dist = min(dist, distance(outer_positions[state.outer_idx1], state.pos))
     end
     if !isfinite(dist)
-        error("Unable to find enough terms")
+        return dist
     end
     empty!(state.inner_candidates)
     empty!(state.outer_candidates)
@@ -467,106 +467,56 @@ function _find_next_distance!(state::ElectrodeSearchState)
         state.outer_idx1 -= 1
     end
     @assert !isempty(state.inner_candidates) || !isempty(state.outer_candidates)
+    return dist
 end
 
 """
-Find exactly (if `relaxed_num == false`) or at least (if `relaxed_num == true`)
-`n` electrodes that are the closest in axial (X) position to `pos` (in um).
+Find at least `min_num` electrodes that are the closest in axial (X) position
+to `pos` (in um). All electrodes within `min_dist` will also be included.
 
 `electrode_index` is a map from electrode name to a unique ID.
 ID 1 will be ignored (assumed to be ground)
 electrodes with the same ID are assumed to be shorted together
 and therefore will be treated as the same one.
 """
-function find_n_electrodes(electrode_index, pos, n; relaxed_num=false)
-    nup = 0
-    ndown = 0
+function find_electrodes(electrode_index, pos; min_num=0, min_dist=0)
     res = Set{Int}()
 
     search_state = ElectrodeSearchState(pos)
+    dist_satisfied = false
+    num_satisfied = false
 
-    inner_up = Int[]
-    inner_down = Int[]
-    outer_up = Int[]
-    outer_down = Int[]
     while true
-        nleft = n - length(res)
-        if nleft <= 0
+        num_satisfied = min_num <= length(res)
+        if num_satisfied && dist_satisfied
             return res
         end
 
-        _find_next_distance!(search_state)
+        dist = _find_next_distance!(search_state)
+        if !isfinite(dist)
+            if num_satisfied
+                return res
+            end
+            error("Unable to find enough terms")
+        end
+        dist_satisfied = dist >= min_dist
 
-        empty!(inner_up)
-        empty!(inner_down)
         for p in search_state.inner_candidates
             id = electrode_index[p.name]
-            # Ground or already added
+            # Ground
             if id == 1
                 continue
-            elseif id in res
-                # Don't add duplicate electrode but do count up vs down
-                if p.up
-                    nup += 1
-                else
-                    ndown += 1
-                end
-                continue
             end
-            push!(p.up ? inner_up : inner_down, id)
-        end
-        n_inner_up = length(inner_up)
-        n_inner_down = length(inner_down)
-        if n_inner_up + n_inner_down <= nleft || relaxed_num
-            nleft -= n_inner_up + n_inner_down
-            nup += n_inner_up
-            ndown += n_inner_down
-            union!(res, inner_up)
-            union!(res, inner_down)
-        else
-            # Found too many: try to balance up and down
-            # Do note that nup + ndown could be more than n due to shorted electrodes
-            ndown_use = min(max((nleft + nup - ndown) ÷ 2, 0), n_inner_down, nleft)
-            nup_use = nleft - ndown_use
-            union!(res, @view inner_up[1:nup_use])
-            union!(res, @view inner_down[1:ndown_use])
-            return res
+            push!(res, id)
         end
 
-        empty!(outer_up)
-        empty!(outer_down)
         for p in search_state.outer_candidates
             id = electrode_index[p.name]
-            # Ground or already added
+            # Ground
             if id == 1
                 continue
-            elseif id in res
-                # Don't add duplicate electrode but do count up vs down
-                if p.up
-                    nup += 1
-                else
-                    ndown += 1
-                end
-                continue
             end
-            push!(p.up ? outer_up : outer_down, id)
-        end
-        n_outer_up = length(outer_up)
-        n_outer_down = length(outer_down)
-        if n_outer_up + n_outer_down <= nleft
-            nleft -= n_outer_up + n_outer_down
-            nup += n_outer_up
-            ndown += n_outer_down
-            union!(res, outer_up)
-            union!(res, outer_down)
-        else
-            # Found too many: try to balance up and down
-            # Do note that nup + ndown could be more than n due to shorted electrodes
-            ndown_use = min(max((nleft + nup - ndown) ÷ 2, 0), n_outer_down, nleft)
-            nup_use = nleft - ndown_use
-            union!(res, @view outer_up[1:nup_use])
-            union!(res, @view outer_down[1:ndown_use])
-            return res
+            push!(res, id)
         end
     end
 end
