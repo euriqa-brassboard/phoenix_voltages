@@ -106,26 +106,12 @@ function get_compensate_terms1(res::Fitting.PolyFitResult{3}, stride)
             x4=scaled_x4 * scale_4)
 end
 
-function solve_terms1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
-    nfits = length(fits)
-    coefficient = Matrix{Float64}(undef, 10, nfits)
-    for i in 1:nfits
-        coefficient[:, i] .= Tuple(get_compensate_terms1(fits[i], stride))
-    end
-    # X = coefficient \ Matrix(I, 10, 10)
-    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 10, 10))
-    @assert size(X, 2) == 10
-    return (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
-            xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
-            z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10])
-end
-
 function compensate_fitter1(solution::Potential)
     fitter = Fitting.PolyFitter(2, 2, 4)
     return Potentials.FitCache(fitter, solution)
 end
 
-function solve_compensate1(cache::Potentials.FitCache, pos::NTuple{3})
+function get_compensate_coeff1(cache::Potentials.FitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
@@ -133,8 +119,25 @@ function solve_compensate1(cache::Potentials.FitCache, pos::NTuple{3})
                                             x_coord, 20, relaxed_num=true)
     ele_select = sort!(collect(ele_select))
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
+
     # Change stride to um in unit
-    return ele_select, solve_terms1(fits, cache.solution.stride .* 1000)
+    stride_um = cache.solution.stride .* 1000
+    nfits = length(fits)
+    coefficient = Matrix{Float64}(undef, 10, nfits)
+    for i in 1:nfits
+        coefficient[:, i] .= Tuple(get_compensate_terms1(fits[i], stride_um))
+    end
+    return ele_select, coefficient
+end
+
+function solve_compensate1(cache::Potentials.FitCache, pos::NTuple{3})
+    ele_select, coefficient = get_compensate_coeff1(cache, pos)
+    # X = coefficient \ Matrix(I, 10, 10)
+    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 10, 10))
+    @assert size(X, 2) == 10
+    return ele_select, (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
+                        xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
+                        z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10])
 end
 
 function compensate_fitter1_2(solution::Potential)
@@ -207,54 +210,42 @@ function get_compensate_terms1_nozx(res::Fitting.PolyFitResult{3}, stride)
             x4=scaled_x4 * scale_4)
 end
 
-function solve_terms1_nozx(fits::Vector{Fitting.PolyFitResult{3}}, stride)
+function get_compensate_coeff1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
+    # pos is in xyz index
+
+    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
+    ele_select = Mappings.find_n_electrodes(cache.solution.electrode_index,
+                                            x_coord, 20, relaxed_num=true)
+    ele_select = sort!(collect(ele_select))
+    fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
+
+    # Change stride to um in unit
+    stride_um = cache.solution.stride .* 1000
     nfits = length(fits)
     coefficient = Matrix{Float64}(undef, 9, nfits)
     for i in 1:nfits
-        coefficient[:, i] .= Tuple(get_compensate_terms1_nozx(fits[i], stride))
+        coefficient[:, i] .= Tuple(get_compensate_terms1_nozx(fits[i], stride_um))
     end
-    # X = coefficient \ Matrix(I, 9, 9)
-    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 9, 9))
-    @assert size(X, 2) == 9
-    return (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
-            xy=X[:, 4], yz=X[:, 5], z2=X[:, 6], x2=X[:, 7], x3=X[:, 8], x4=X[:, 9])
+    return ele_select, coefficient
 end
 
 function solve_compensate1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
-    # pos is in xyz index
-
-    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
-    ele_select = Mappings.find_n_electrodes(cache.solution.electrode_index,
-                                            x_coord, 20, relaxed_num=true)
-    ele_select = sort!(collect(ele_select))
-    fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
-    # Change stride to um in unit
-    return ele_select, solve_terms1_nozx(fits, cache.solution.stride .* 1000)
+    ele_select, coefficient = get_compensate_coeff1_nozx(cache, pos)
+    # X = coefficient \ Matrix(I, 9, 9)
+    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 9, 9))
+    @assert size(X, 2) == 9
+    return ele_select, (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
+                        xy=X[:, 4], yz=X[:, 5],
+                        z2=X[:, 6], x2=X[:, 7], x3=X[:, 8], x4=X[:, 9])
 end
 
-function _solve_transfer1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
-    nfits = length(fits)
-    coefficient = Matrix{Float64}(undef, 9, nfits)
-    for i in 1:nfits
-        coefficient[:, i] .= Tuple(get_compensate_terms1_nozx(fits[i], stride))
-    end
+function solve_transfer1(cache::Potentials.FitCache, pos::NTuple{3})
+    ele_select, coefficient = get_compensate_coeff1_nozx(cache, pos)
     y = zeros(9)
     y[7] = 1 # X2
     y[5] = 1 # YZ
-    # return coefficient \ y
-    return Optimizers.optimize_minmax(coefficient, y)
-end
-
-function get_transfer1(cache::Potentials.FitCache, pos::NTuple{3})
-    # pos is in xyz index
-
-    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
-    ele_select = Mappings.find_n_electrodes(cache.solution.electrode_index,
-                                            x_coord, 20, relaxed_num=true)
-    ele_select = sort!(collect(ele_select))
-    fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
-    # Change stride to um in unit
-    return ele_select, _solve_transfer1(fits, cache.solution.stride .* 1000)
+    # return ele_select, coefficient \ y
+    return ele_select, Optimizers.optimize_minmax(coefficient, y)
 end
 
 struct CenterTracker
