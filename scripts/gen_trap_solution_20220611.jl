@@ -30,7 +30,7 @@ const load_center_posidx = (load_center_xidx, get(centers, load_center_xidx)...)
 # (176.00000000000026, 5.535493109145054, 9.640018584312939)
 # @show load_center_posidx
 
-const load_compensate = Solutions.get_compensate_terms1(
+const load_compensate = Solutions.solve_compensate1(
     fits_cache, load_center_posidx)
 
 # @show load_compensate

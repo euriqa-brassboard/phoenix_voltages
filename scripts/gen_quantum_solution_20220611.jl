@@ -30,12 +30,12 @@ const quantum_center_posidx = (quantum_center_xidx, get(centers, quantum_center_
 # (3221.0, 4.173198055959172, 3.505595438502667)
 @show quantum_center_posidx
 
-const quantum_compensate = Solutions.get_compensate_terms1(
+const quantum_compensate = Solutions.solve_compensate1(
     fits_cache, quantum_center_posidx)
 
 # @show quantum_compensate
 
 const compfile = Solutions.compensation_to_file(solution, mapfile,
-                                                      quantum_compensate...)
+                                                quantum_compensate...)
 
 write_file(outputfile, compfile)

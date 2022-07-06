@@ -125,7 +125,7 @@ function compensate_fitter1(solution::Potential)
     return Potentials.FitCache(fitter, solution)
 end
 
-function get_compensate_terms1(cache::Potentials.FitCache, pos::NTuple{3})
+function solve_compensate1(cache::Potentials.FitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
@@ -220,7 +220,7 @@ function solve_terms1_nozx(fits::Vector{Fitting.PolyFitResult{3}}, stride)
             xy=X[:, 4], yz=X[:, 5], z2=X[:, 6], x2=X[:, 7], x3=X[:, 8], x4=X[:, 9])
 end
 
-function get_compensate_terms1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
+function solve_compensate1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
     # pos is in xyz index
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000

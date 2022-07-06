@@ -29,9 +29,9 @@ function get_rf_center(xpos_um)
     return (xidx, get(centers, xidx)...)
 end
 
-function get_compensate_terms1(xpos_um)
+function solve_compensate(xpos_um)
     @show xpos_um
-    return Solutions.get_compensate_terms1(fits_cache, get_rf_center(xpos_um))
+    return Solutions.solve_compensate1(fits_cache, get_rf_center(xpos_um))
 end
 
 function get_compensate_fits1(xpos_um, electrode)
@@ -135,7 +135,7 @@ figure()
 plot(interpolate_xs, [maximum(abs.(solve_interpolate(x).x2)) for x in interpolate_xs])
 grid()
 
-# const comp_terms = [get_compensate_terms1(xpos_um) for xpos_um in xpos_ums]
+# const comp_terms = [solve_compensate(xpos_um) for xpos_um in xpos_ums]
 # for term in comp_terms
 #     println(join(get_all_names(term[1]), "."))
 # end

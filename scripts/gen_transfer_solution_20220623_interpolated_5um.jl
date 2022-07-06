@@ -29,9 +29,9 @@ function get_rf_center(xpos_um)
     return (xidx, get(centers, xidx)...)
 end
 
-function get_compensate_terms1(xpos_um)
+function solve_compensate(xpos_um)
     @show xpos_um
-    return Solutions.get_compensate_terms1_nozx(fits_cache, get_rf_center(xpos_um))
+    return Solutions.solve_compensate1_nozx(fits_cache, get_rf_center(xpos_um))
 end
 
 function get_transfer_line(term)
@@ -42,7 +42,7 @@ end
 const xpos_ums0 = -3080:35:1155
 const scales0 = fill(0.25, length(xpos_ums0))
 scales0[1] = 0.2
-const comp_terms0 = [get_compensate_terms1(xpos_um) for xpos_um in xpos_ums0]
+const comp_terms0 = [solve_compensate(xpos_um) for xpos_um in xpos_ums0]
 const lines0 = [get_transfer_line(term) for term in comp_terms0]
 
 const xpos_ums = -3080:5:1155

@@ -29,13 +29,13 @@ function get_rf_center(xpos_um)
     return (xidx, get(centers, xidx)...)
 end
 
-function get_compensate_terms1_nozx(xpos_um)
+function solve_compensate(xpos_um)
     @show xpos_um
-    return Solutions.get_compensate_terms1_nozx(fits_cache, get_rf_center(xpos_um))
+    return Solutions.solve_compensate1_nozx(fits_cache, get_rf_center(xpos_um))
 end
 
 const xpos_ums = -3080:35:1155
-const comp_terms = [get_compensate_terms1_nozx(xpos_um) for xpos_um in xpos_ums]
+const comp_terms = [solve_compensate(xpos_um) for xpos_um in xpos_ums]
 
 const transfer_terms = [(term[2].x2 .+ term[2].yz) .* 0.25 for term in comp_terms]
 transfer_terms[1] = transfer_terms[1] .* 0.8
