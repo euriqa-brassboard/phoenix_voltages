@@ -28,10 +28,9 @@ end
 function get_compensate_coeff_data(xpos_um)
     @show xpos_um
     eles, coeff = Solutions.get_compensate_coeff1(fits_cache, get_rf_center(xpos_um))
-    ele_names = [solution.electrode_names[ele] for ele in eles]
     x0 = coeff \ Matrix(I, 10, 10)
     B = qr(coeff').Q[:, (10 + 1):end]
-    return Dict("electrode_names"=>ele_names,
+    return Dict("electrodes"=>eles,
                 "coefficients"=>coeff,
                 "solution"=>x0,
                 "free_solution"=>B,
@@ -43,4 +42,5 @@ const coeff_data = [@time(get_compensate_coeff_data(xpos_um)) for xpos_um in xpo
 
 matopen("$(prefix).mat", "w") do mat
     write(mat, "data", coeff_data)
+    write(mat, "electrode_names", solution.electrode_names)
 end
