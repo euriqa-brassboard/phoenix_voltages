@@ -29,13 +29,13 @@ function get_rf_center(xpos_um)
     return (xidx, get(centers, xidx)...)
 end
 
-function get_transfer1(xpos_um)
+function solve_transfer(xpos_um)
     @show xpos_um
-    return Solutions.get_transfer1(fits_cache, get_rf_center(xpos_um))
+    return Solutions.solve_transfer1(fits_cache, get_rf_center(xpos_um))
 end
 
 const xpos_ums = -3080:1155
-const transfer_terms = [get_transfer1(xpos_um)[2] for xpos_um in xpos_ums]
+const transfer_terms = [solve_transfer(xpos_um)[2] for xpos_um in xpos_ums]
 
 figure()
 for x in -3220:70:1330

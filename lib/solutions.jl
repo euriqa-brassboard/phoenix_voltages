@@ -232,7 +232,7 @@ function solve_compensate1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
     return ele_select, solve_terms1_nozx(fits, cache.solution.stride .* 1000)
 end
 
-function solve_transfer1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
+function _solve_transfer1(fits::Vector{Fitting.PolyFitResult{3}}, stride)
     nfits = length(fits)
     coefficient = Matrix{Float64}(undef, 9, nfits)
     for i in 1:nfits
@@ -254,7 +254,7 @@ function get_transfer1(cache::Potentials.FitCache, pos::NTuple{3})
     ele_select = sort!(collect(ele_select))
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
     # Change stride to um in unit
-    return ele_select, solve_transfer1(fits, cache.solution.stride .* 1000)
+    return ele_select, _solve_transfer1(fits, cache.solution.stride .* 1000)
 end
 
 struct CenterTracker

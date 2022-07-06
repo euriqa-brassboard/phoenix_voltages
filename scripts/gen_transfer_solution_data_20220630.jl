@@ -27,15 +27,15 @@ function get_rf_center(xpos_um)
     return (xidx, get(centers, xidx)...)
 end
 
-function get_transfer1(xpos_um)
+function solve_transfer(xpos_um)
     @show xpos_um
-    eles, vals = Solutions.get_transfer1(fits_cache, get_rf_center(xpos_um))
+    eles, vals = Solutions.solve_transfer1(fits_cache, get_rf_center(xpos_um))
     ele_names = [solution.electrode_names[ele] for ele in eles]
     return [ele_names, vals]
 end
 
 const xpos_ums = -3220:1330
-const transfer_solutions = [get_transfer1(xpos_um) for xpos_um in xpos_ums]
+const transfer_solutions = [solve_transfer(xpos_um) for xpos_um in xpos_ums]
 
 matopen("$(prefix).mat", "w") do mat
     write(mat, "xpos_ums", [xpos_ums;])
