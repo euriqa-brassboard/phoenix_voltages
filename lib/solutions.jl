@@ -116,7 +116,7 @@ function get_compensate_coeff1(cache::Potentials.FitCache, pos::NTuple{3})
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
     ele_select = Mappings.find_electrodes(cache.solution.electrode_index,
-                                          x_coord, min_num=20, min_dist=250)
+                                          x_coord, min_num=20, min_dist=550)
     ele_select = sort!(collect(ele_select))
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
 
@@ -215,7 +215,7 @@ function get_compensate_coeff1_nozx(cache::Potentials.FitCache, pos::NTuple{3})
 
     x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
     ele_select = Mappings.find_electrodes(cache.solution.electrode_index,
-                                          x_coord, min_num=20, min_dist=250)
+                                          x_coord, min_num=20, min_dist=550)
     ele_select = sort!(collect(ele_select))
     fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
 
