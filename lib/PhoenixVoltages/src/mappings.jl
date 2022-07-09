@@ -256,7 +256,7 @@ end
 # In unit of 70um and showing only the even electrodes, the order/positions
 # of the electrodes are,
 
-# Outer: |                47(O0)              |22(Q44-64)|          14(O0)          |
+# Outer: |               46.5(O0)            |22(Q44-64)|          14.5(O0)         |
 # Inner: |2(gap)|10(GND)|5(L0-8)|30(S10-0 x 5)|22(Q0-42) |8(S0-10,0-3)|6(GND)|2(gap)|
 
 # where the number outside the parenthesis is the width in unit of 70um
@@ -331,11 +331,11 @@ function __populate_positions()
     # Outer 1
     push!(outer_positions,
           ElectrodePosition("O0", pos_outer * unit_um,
-                            pos_inner * unit_um, true))
+                            (pos_inner - 0.5) * unit_um, true))
     push!(outer_positions,
           ElectrodePosition("O1", pos_outer * unit_um,
-                            pos_inner * unit_um, false))
-    pos_outer = pos_inner
+                            (pos_inner - 0.5) * unit_um, false))
+    pos_outer = pos_inner - 0.5
 
     # Quantum inner
     for i in 1:nQ
@@ -359,7 +359,7 @@ function __populate_positions()
                                 (pos_outer + 2) * unit_um, false))
         pos_outer += 2
     end
-    @assert pos_inner == pos_outer
+    @assert pos_inner - 0.5 == pos_outer
 
     # Transition 2
     for j in 1:S_rep2
