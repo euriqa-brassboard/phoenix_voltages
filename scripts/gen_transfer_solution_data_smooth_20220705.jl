@@ -13,7 +13,7 @@ end
 
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220705")
 
-function solve_all(diff_weight)
+function solve_all(diff_weight, flatten_max)
     @show diff_weight
     model = Model(Ipopt.Optimizer)
     set_optimizer_attribute(model, "max_cpu_time", 3600.0)
@@ -22,8 +22,10 @@ function solve_all(diff_weight)
     maxvs = VariableRef[]
     maxdiffs = VariableRef[]
     local prev_vmap
-    @variable(model, maxmaxdiff)
-    maxmaxweight = 0
+    if flatten_max
+        @variable(model, maxmaxdiff)
+        maxmaxweight = 0
+    end
     for data in coeff_data
         solution = data["solution"]
         x0 = solution[:, 7] .+ solution[:, 5] .* 0.75
@@ -47,14 +49,18 @@ function solve_all(diff_weight)
                 @constraint(model, maxdiff >= v2 - v1)
             end
             push!(maxdiffs, maxdiff)
-            if -3050 < data["xpos_um"] < 1130
+            if flatten_max && -3050 < data["xpos_um"] < 1130
                 @constraint(model, maxmaxdiff >= maxdiff)
                 maxmaxweight += 1
             end
         end
         prev_vmap = vmap
     end
-    @objective(model, Min, sum(maxvs) + sum(maxdiffs) * diff_weight + maxmaxdiff * (maxmaxweight))
+    if flatten_max
+        @objective(model, Min, sum(maxvs) + sum(maxdiffs) * diff_weight + maxmaxdiff * maxmaxweight)
+    else
+        @objective(model, Min, sum(maxvs) + sum(maxdiffs) * diff_weight)
+    end
     JuMP.optimize!(model)
     return [[value(v) for v in x] for x in xs]
 end
@@ -65,10 +71,18 @@ function pack_data(data, vals)
                 "xpos_um"=>data["xpos_um"])
 end
 
-const voltages = @time(solve_all(0.05))
-const transfer_solutions = [pack_data(data, vals) for (data, vals)
-                                in zip(coeff_data, voltages)]
 matopen("$(prefix).mat", "w") do mat
+    voltages = @time(solve_all(0.05, true))
+    transfer_solutions = [pack_data(data, vals) for (data, vals)
+                              in zip(coeff_data, voltages)]
+    write(mat, "electrode_names", electrode_names)
+    write(mat, "transfer_solutions", transfer_solutions)
+end
+
+matopen("$(prefix)_noglobal.mat", "w") do mat
+    voltages = @time(solve_all(0.05, false))
+    transfer_solutions = [pack_data(data, vals) for (data, vals)
+                              in zip(coeff_data, voltages)]
     write(mat, "electrode_names", electrode_names)
     write(mat, "transfer_solutions", transfer_solutions)
 end
