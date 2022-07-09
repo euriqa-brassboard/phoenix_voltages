@@ -51,7 +51,7 @@ function set_title!(template, title)
         error("SVG template does not support title")
     end
     template.title.content = title
-    return
+    return template.title
 end
 
 function scale_trap_to_svg(template, v)
