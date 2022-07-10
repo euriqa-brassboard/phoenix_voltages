@@ -184,44 +184,30 @@ struct Potential
     electrode_names::Vector{Vector{String}}
 end
 
-function Potential(raw::RawPotential, aliases::Dict{Int,Int})
-    # Compute the mapping between id's
-    id_map = zeros(Int, raw.electrodes)
-    id = 0
-    new_electrodes = raw.electrodes - length(aliases)
+function Potential(raw::RawPotential,
+                   electrode_names::AbstractVector{V} where V <: AbstractVector{S} where S <: AbstractString)
+    @assert raw.electrodes == length(raw_electrode_names)
+    new_electrodes = length(electrode_names)
     data = Array{Float64}(undef, raw.nz, raw.ny, raw.nx, new_electrodes)
-    electrode_names = Vector{Vector{String}}(undef, new_electrodes)
     electrode_index = Dict{String,Int}()
-    for i in 1:raw.electrodes
-        if i in keys(aliases)
-            continue
+    for i in 1:new_electrodes
+        electrodes = electrode_names[i]
+        first = true
+        for elec in electrodes
+            electrode_index[elec] = i
+            raw_idx = raw_electrode_index[elec]
+            if first
+                data[:, :, :, i] .= @view raw.data[:, :, :, raw_idx]
+                first = false
+            else
+                data[:, :, :, i] .+= @view raw.data[:, :, :, raw_idx]
+            end
         end
-        id += 1
-        id_map[i] = id
-        data[:, :, :, id] .= @view raw.data[:, :, :, i]
-        name = raw_electrode_names[i]
-        electrode_index[name] = id
-        electrode_names[id] = [name]
-    end
-    @assert new_electrodes == id
-    for (k, v) in aliases
-        # The user should connect directly to the final one
-        @assert !(v in keys(aliases))
-        id = id_map[v]
-        @assert id != 0
-        data[:, :, :, id] .= @view(data[:, :, :, id]) .+ @view(raw.data[:, :, :, k])
-        name = raw_electrode_names[k]
-        electrode_index[name] = id
-        push!(electrode_names[id], name)
+        @assert !first
     end
     return Potential(new_electrodes, raw.nx, raw.ny, raw.nz,
                      raw.stride, raw.origin,
                      data, electrode_index, electrode_names)
-end
-
-function Potential(raw::RawPotential, aliases::Dict{String,String})
-    return Potential(raw, Dict(raw_electrode_index[k]=>raw_electrode_index[v]
-                               for (k, v) in aliases))
 end
 
 for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
@@ -233,16 +219,62 @@ for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
     end
 end
 
-function import_pillbox_v0(filename; aliases=Dict{Int,Int}())
-    return Potential(import_pillbox_v0_raw(filename), aliases)
+function _aliases_to_names(aliases::AbstractDict{Int,Int})
+    # Compute the mapping between id's
+    raw_electrodes = length(raw_electrode_names)
+    id_map = zeros(Int, raw_electrodes)
+    id = 0
+    new_electrodes = raw_electrodes - length(aliases)
+    electrode_names = Vector{Vector{String}}(undef, new_electrodes)
+    for i in 1:raw_electrodes
+        if i in keys(aliases)
+            continue
+        end
+        id += 1
+        id_map[i] = id
+        electrode_names[id] = [raw_electrode_names[i]]
+    end
+    @assert new_electrodes == id
+    for (k, v) in aliases
+        # The user should connect directly to the final one
+        @assert !(v in keys(aliases))
+        id = id_map[v]
+        @assert id != 0
+        name = raw_electrode_names[k]
+        push!(electrode_names[id], name)
+    end
+    return electrode_names
 end
 
-function import_pillbox_v1(filename; aliases=Dict{Int,Int}())
-    return Potential(import_pillbox_v1_raw(filename), aliases)
+function _aliases_to_names(aliases::AbstractDict{S1,S2} where {S1<:AbstractString,S2<:AbstractString})
+    return _aliases_to_names(Dict(raw_electrode_index[k]=>raw_electrode_index[v]
+                                  for (k, v) in aliases))
 end
 
-function import_pillbox_64(filename; aliases=Dict{Int,Int}())
-    return Potential(import_pillbox_64_raw(filename), aliases)
+function _get_electrode_names(aliases, electrode_names)
+    if electrode_names !== nothing
+        @assert aliases === nothing
+        return electrode_names
+    end
+    if aliases === nothing
+        return [[name] for name in raw_electrode_names]
+    end
+    return _aliases_to_names(aliases)
+end
+
+function import_pillbox_v0(filename; aliases=nothing, electrode_names=nothing)
+    return Potential(import_pillbox_v0_raw(filename),
+                     _get_electrode_names(aliases, electrode_names))
+end
+
+function import_pillbox_v1(filename; aliases=nothing, electrode_names=nothing)
+    return Potential(import_pillbox_v1_raw(filename),
+                     _get_electrode_names(aliases, electrode_names))
+end
+
+function import_pillbox_64(filename; aliases=nothing, electrode_names=nothing)
+    return Potential(import_pillbox_64_raw(filename),
+                     _get_electrode_names(aliases, electrode_names))
 end
 
 const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
