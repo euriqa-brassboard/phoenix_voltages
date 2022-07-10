@@ -185,7 +185,7 @@ struct Potential
 end
 
 function Potential(raw::RawPotential,
-                   electrode_names::AbstractVector{V} where V <: AbstractVector{S} where S <: AbstractString)
+                   electrode_names::AbstractVector)
     @assert raw.electrodes == length(raw_electrode_names)
     new_electrodes = length(electrode_names)
     data = Array{Float64}(undef, raw.nz, raw.ny, raw.nx, new_electrodes)
