@@ -3,9 +3,14 @@
 module PhoenixVisual
 
 using EzXML
+using Printf
+using PyPlot
+
+const svg_ns = ["svg" => "http://www.w3.org/2000/svg"]
 
 mutable struct TrapTemplate
     const doc::EzXML.Document
+    const svg::EzXML.Node
     const ionpos::EzXML.Node
     const y_ion::Float64
     const x_load::Float64
@@ -14,20 +19,19 @@ mutable struct TrapTemplate
     plotspace::EzXML.Node
     function TrapTemplate(doc::EzXML.Document)
         svg = root(doc)
-        ns = ["svg" => "http://www.w3.org/2000/svg"]
-        ionpos = findfirst("//svg:line[@id='IonPos']", svg, ns)
+        ionpos = findfirst("//svg:line[@id='IonPos']", svg, svg_ns)
         if ionpos === nothing
             error("Cannot find IonPos node")
         end
         y_ion = parse(Float64, ionpos["y1"])
         x_load = parse(Float64, ionpos["x2"])
         x_center = parse(Float64, ionpos["x1"])
-        template = new(doc, ionpos, y_ion, x_load, x_center)
-        title = findfirst("//svg:text[@id='Title']", svg, ns)
+        template = new(doc, svg, ionpos, y_ion, x_load, x_center)
+        title = findfirst("//svg:text[@id='Title']", svg, svg_ns)
         if title !== nothing
             template.title = title
         end
-        plotspace = findfirst("//svg:rect[@id='PlotSpace']", svg, ns)
+        plotspace = findfirst("//svg:rect[@id='PlotSpace']", svg, svg_ns)
         if plotspace !== nothing
             template.plotspace = plotspace
         end
@@ -101,6 +105,25 @@ function finalize_svg!(template)
     unlink!(template.ionpos)
     if isdefined(template, :plotspace)
         unlink!(template.plotspace)
+    end
+end
+
+function val_to_color(val)
+    @sprintf "%02x" clamp(round(Int, val * 0xff), UInt8)
+end
+
+function fill_electrodes!(template, values)
+    electrodes = findall("//svg:path[@id]", template.svg, svg_ns)
+    cmap = get_cmap("RdBu_r")
+    for ele in electrodes
+        id = split(ele["id"], "-")[1]
+        value = get(values, id, 0)
+        if value == 0
+            continue
+        end
+        rgba = cmap(value / 2 + 0.5)
+        color_str = "#" * val_to_color(rgba[1]) * val_to_color(rgba[2]) * val_to_color(rgba[3])
+        ele["style"] = replace(ele["style"], r"fill:[^;]*"=>"fill:$color_str")
     end
 end
 
