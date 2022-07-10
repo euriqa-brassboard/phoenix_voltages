@@ -72,9 +72,9 @@ end
 
 function add_circle!(template, x, y, r)
     circ = addelement!(template.ionpos.parentnode, "circle")
-    circ["cx"] = x_trap_to_svg(template, x)
-    circ["cy"] = y_trap_to_svg(template, y)
-    circ["r"] = scale_trap_to_svg(template, r)
+    circ["cx"] = round(x_trap_to_svg(template, x), digits=3)
+    circ["cy"] = round(y_trap_to_svg(template, y), digits=3)
+    circ["r"] = round(scale_trap_to_svg(template, r), digits=3)
     return circ
 end
 
@@ -95,6 +95,8 @@ function add_plotline!(template, xs, ys)
             y = 0.0
         end
         y = ytop + height * (1 - y)
+        x = round(x, digits=3)
+        y = round(y, digits=3)
         push!(points, "$x,$y")
     end
     line["points"] = join(points, " ")
