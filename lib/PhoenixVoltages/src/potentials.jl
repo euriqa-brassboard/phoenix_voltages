@@ -289,7 +289,7 @@ struct FitCache
     end
 end
 
-function Base.get(cache::FitCache, idx)
+function Base.get(cache::FitCache, idx::Integer)
     if isassigned(cache.cache, idx)
         return cache.cache[idx]
     end
@@ -301,7 +301,24 @@ end
 Base.get(cache::FitCache, name::AbstractString) =
     get(cache, cache.solution.electrode_index[name])
 
-Base.get(cache::FitCache, electrode, pos::NTuple{3}) =
+Base.get(cache::FitCache, electrode::Union{AbstractString,Integer}, pos::NTuple{3}) =
     get(get(cache, electrode), pos)
+
+function get_multi_electrodes(cache::FitCache, electrodes_voltages, pos::NTuple{3})
+    local res
+    for (ele, v) in electrodes_voltages
+        term = get(cache, ele, pos) * v
+        if !@isdefined(res)
+            res = term
+        else
+            res += term
+        end
+    end
+    if !@isdefined(res)
+        return Fitting.PolyFitResult{3}(cache.fitter.orders,
+                                        zeros(prod(cache.fitter.orders .+ 1)))
+    end
+    return res
+end
 
 end
