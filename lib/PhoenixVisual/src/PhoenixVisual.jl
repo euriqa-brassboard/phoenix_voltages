@@ -112,13 +112,15 @@ function add_plotline!(template, xs, ys)
             pending = (x, y)
             continue
         end
+        if is_pending
+            push!(points, "$(pending[1]),$(pending[2])")
+        end
         is_pending = false
         last_y = y
         push!(points, "$x,$y")
     end
     if is_pending
-        (x, y) = pending
-        push!(points, "$x,$y")
+        push!(points, "$(pending[1]),$(pending[2])")
     end
     line["points"] = join(points, " ")
     return line
