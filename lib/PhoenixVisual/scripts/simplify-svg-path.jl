@@ -180,7 +180,7 @@ function num2str(v)
     return string(v)
 end
 
-function encode_path(points)
+function encode_path(points, close_path=true)
     io = IOBuffer()
     prev_p = points[1]
     print(io, "m$(num2str(prev_p[1])),$(num2str(prev_p[2]))")
@@ -214,7 +214,9 @@ function encode_path(points)
         end
         prev_p = p
     end
-    print(io, 'z')
+    if close_path
+        print(io, 'z')
+    end
     return String(take!(io))
 end
 
@@ -234,13 +236,14 @@ for p in findall("//svg:path", svgroot, svg_ns)
             p["style"] = "fill:#000"
         elseif style == "fill:#00f" || style == "fill:#000"
         else
-            @show style
+            error("Unexpected style: $style")
         end
+        p["d"] = encode_path(points, false)
     else
         simplify_path!(points, 0.1)
         p["style"] = "fill:none;stroke:#000;stroke-width:0.1"
+        p["d"] = encode_path(points)
     end
-    p["d"] = encode_path(points)
 end
 open(ARGS[1], "w") do io
     print(io, svgroot)
