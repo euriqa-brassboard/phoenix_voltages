@@ -70,11 +70,19 @@ function y_trap_to_svg(template, y)
     return scale_trap_to_svg(template, y) + template.y_ion
 end
 
+function num2str(v)
+    v = round(v, digits=2)
+    if isinteger(v)
+        return string(Int(v))
+    end
+    return string(v)
+end
+
 function add_circle!(template, x, y, r)
     circ = addelement!(template.ionpos.parentnode, "circle")
-    circ["cx"] = round(x_trap_to_svg(template, x), digits=2)
-    circ["cy"] = round(y_trap_to_svg(template, y), digits=2)
-    circ["r"] = round(scale_trap_to_svg(template, r), digits=2)
+    circ["cx"] = num2str(x_trap_to_svg(template, x))
+    circ["cy"] = num2str(y_trap_to_svg(template, y))
+    circ["r"] = num2str(scale_trap_to_svg(template, r))
     return circ
 end
 
@@ -87,6 +95,8 @@ function add_plotline!(template, xs, ys)
     ytop = parse(Float64, plotspace["y"])
     height = parse(Float64, plotspace["height"])
     points = String[]
+    local last_y, pending
+    is_pending = false
     for (x, y) in zip(xs, ys)
         x = x_trap_to_svg(template, x)
         if y > 1
@@ -95,8 +105,19 @@ function add_plotline!(template, xs, ys)
             y = 0.0
         end
         y = ytop + height * (1 - y)
-        x = round(x, digits=2)
-        y = round(y, digits=2)
+        x = num2str(x)
+        y = num2str(y)
+        if @isdefined(last_y) && last_y == y
+            is_pending = true
+            pending = (x, y)
+            continue
+        end
+        is_pending = false
+        last_y = y
+        push!(points, "$x,$y")
+    end
+    if is_pending
+        (x, y) = pending
         push!(points, "$x,$y")
     end
     line["points"] = join(points, " ")
