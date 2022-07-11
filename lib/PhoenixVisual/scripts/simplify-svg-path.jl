@@ -227,8 +227,18 @@ for p in findall("//svg:path", svgroot, svg_ns)
         simplify_path!(points, 0.05)
         p["id"] = "path$(id)"
         id += 1
+        style = p["style"]
+        if style == "fill:#0000ff;fill-opacity:1;fill-rule:evenodd;stroke:none"
+            p["style"] = "fill:#00f"
+        elseif style == "fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:none"
+            p["style"] = "fill:#000"
+        elseif style == "fill:#00f" || style == "fill:#000"
+        else
+            @show style
+        end
     else
         simplify_path!(points, 0.1)
+        p["style"] = "fill:none;stroke:#000;stroke-width:0.1"
     end
     p["d"] = encode_path(points)
 end
