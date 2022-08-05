@@ -360,4 +360,104 @@ function compensation_to_file(solution::Potential, mapfile::MapFile,
     return CompensationFile(mapfile, term_names, term_values)
 end
 
+# Terms we care about on pheonix
+# x, y, z, 2xy, 2yz, 2xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4, x^2z
+# Compared to HOA, we are able to compensate for x^2z due to the outer electrodes.
+# stride should be in um, voltage should be in V
+function get_compensate_terms2(res::Fitting.PolyFitResult{3}, stride)
+    # axis order of fitting result is z, y, x
+    # axis order of stride is x, y, z
+    raw_x = res[0, 0, 1]
+    raw_y = res[0, 1, 0]
+    raw_z = res[1, 0, 0]
+
+    raw_xy = res[0, 1, 1]
+    raw_yz = res[1, 1, 0]
+    raw_zx = res[1, 0, 1]
+
+    raw_x2 = res[0, 0, 2]
+    raw_y2 = res[0, 2, 0]
+    raw_z2 = res[2, 0, 0]
+
+    raw_x3 = res[0, 0, 3]
+    raw_x4 = res[0, 0, 4]
+
+    raw_x2z = res[1, 0, 2]
+
+    scaled_x = raw_x / stride[1]
+    scaled_y = raw_y / stride[2]
+    scaled_z = raw_z / stride[3]
+
+    # The actual term is 2xy, 2yz, 2zx in order to match the magnitude
+    # with the xx and zz terms.
+    scaled_xy = raw_xy / stride[1] / stride[2] / 2
+    scaled_yz = raw_yz / stride[2] / stride[3] / 2
+    scaled_zx = raw_zx / stride[3] / stride[1] / 2
+
+    scaled_x2 = raw_x2 / stride[1]^2
+    scaled_y2 = raw_y2 / stride[2]^2
+    scaled_z2 = raw_z2 / stride[3]^2
+
+    scaled_x3 = raw_x3 / stride[1]^3
+    scaled_x4 = raw_x4 / stride[1]^4
+
+    scaled_x2z = raw_x2z / stride[1]^2 / stride[3]
+
+    # The two legal quadratic terms are `x^2 - (y^2 + z^2) / 2` and `z^2 - y^2`
+    # which are also orthogonal to each other.
+    # The orthogonal illegal term is `x^2 + y^2 + z^2`.
+    # Here we just need to find the transfermation to go from the taylor expansion
+    # basis to the new basis.
+    # Since the three terms are orthogonal, we can just compute the dot product
+    # with these three terms and apply the correct normalization coefficient.
+    xx = (2 * scaled_x2 - scaled_y2 - scaled_z2) / 3
+    zz = (scaled_z2 - scaled_y2) / 2
+
+    # Current units are V/um^n
+    # Expected units
+    # DX/DY/DZ: V/m
+    # XY, YZ, ZX, ZZ, XX: 525 uV / (2.74 um)^2
+    # X3, X2Z: 525 uV / (2.74 um)^3
+    # X4: 525 uV / (2.74 um)^4
+    scale_1 = 1e6
+    scale_2 = (2.74^2 / 525e-6)
+    scale_3 = (2.74^3 / 525e-6)
+    scale_4 = (2.74^4 / 525e-6)
+    return (dx=scaled_x * scale_1, dy=scaled_y * scale_1, dz=scaled_z * scale_1,
+            xy=scaled_xy * scale_2, yz=scaled_yz * scale_2, zx=scaled_zx * scale_2,
+            z2=zz * scale_2, x2=xx * scale_2, x3=scaled_x3 * scale_3,
+            x4=scaled_x4 * scale_4, x2z=scaled_x2z * scale_3)
+end
+
+function get_compensate_coeff2(cache::Potentials.FitCache, pos::NTuple{3})
+    # pos is in xyz index
+
+    x_coord = x_index_to_axis(cache.solution, pos[1]) .* 1000
+    ele_select = Mappings.find_electrodes(cache.solution.electrode_index,
+                                          x_coord, min_num=20, min_dist=350)
+    ele_select = sort!(collect(ele_select))
+    fits = [get(cache, e, (pos[3], pos[2], pos[1])) for e in ele_select]
+
+    # Change stride to um in unit
+    stride_um = cache.solution.stride .* 1000
+    nfits = length(fits)
+    coefficient = Matrix{Float64}(undef, 11, nfits)
+    for i in 1:nfits
+        coefficient[:, i] .= Tuple(get_compensate_terms2(fits[i], stride_um))
+    end
+    return ele_select, coefficient
+end
+
+function solve_compensate2(cache::Potentials.FitCache, pos::NTuple{3})
+    ele_select, coefficient = get_compensate_coeff2(cache, pos)
+    # X = coefficient \ Matrix(I, 10, 10)
+    X = Optimizers.optimize_minmax(coefficient, Matrix(I, 11, 11))
+    @assert size(X, 2) == 11
+    return ele_select, (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
+                        xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
+                        z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10],
+                        x2z=X[:, 11])
+end
+
+
 end
