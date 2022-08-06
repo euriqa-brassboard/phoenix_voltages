@@ -76,7 +76,7 @@ end
 
 function gen_solution(termidx)
     matopen("$(prefix)_$(termidx).mat", "w") do mat
-        voltages = @time(solve_all(0.01, true, termidx))
+        voltages = @time(solve_all(0.005, true, termidx))
         transfer_solutions = [pack_data(data, vals) for (data, vals)
                                   in zip(coeff_data, voltages)]
         write(mat, "electrode_names", electrode_names)
