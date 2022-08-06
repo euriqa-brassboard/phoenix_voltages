@@ -16,7 +16,7 @@ const prefix = joinpath(@__DIR__, "../data/compensate2_smooth_20220805")
 function solve_all(diff_weight, flatten_max, termidx)
     @show diff_weight
     model = Model(Ipopt.Optimizer)
-    set_optimizer_attribute(model, "max_cpu_time", 3600.0)
+    set_optimizer_attribute(model, "max_cpu_time", 7200.0)
     set_optimizer_attribute(model, "print_level", 5)
     xs = Vector{AffExpr}[]
     maxvs = VariableRef[]
@@ -49,7 +49,7 @@ function solve_all(diff_weight, flatten_max, termidx)
                 @constraint(model, maxdiff >= v2 - v1)
             end
             push!(maxdiffs, maxdiff)
-            if flatten_max && -3050 < data["xpos_um"] < 1130
+            if flatten_max && -1000 < data["xpos_um"] < 1000
                 @constraint(model, maxmaxdiff >= maxdiff)
                 maxmaxweight += 1
             end
@@ -76,7 +76,7 @@ end
 
 function gen_solution(termidx)
     matopen("$(prefix)_$(termidx).mat", "w") do mat
-        voltages = @time(solve_all(0.05, true, termidx))
+        voltages = @time(solve_all(0.01, true, termidx))
         transfer_solutions = [pack_data(data, vals) for (data, vals)
                                   in zip(coeff_data, voltages)]
         write(mat, "electrode_names", electrode_names)
