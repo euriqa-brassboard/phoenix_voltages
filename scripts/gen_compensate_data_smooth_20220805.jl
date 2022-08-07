@@ -16,7 +16,8 @@ const prefix = joinpath(@__DIR__, "../data/compensate2_smooth_20220805")
 function solve_all(diff_weight, flatten_max, termidx)
     @show diff_weight
     model = Model(Ipopt.Optimizer)
-    set_optimizer_attribute(model, "max_cpu_time", 3600.0 * 10)
+    # set_optimizer_attribute(model, "max_cpu_time", 3600.0 * 40)
+    set_optimizer_attribute(model, "max_iter", 30000)
     set_optimizer_attribute(model, "print_level", 5)
     xs = Vector{AffExpr}[]
     maxvs = VariableRef[]
