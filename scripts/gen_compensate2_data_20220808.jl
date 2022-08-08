@@ -38,8 +38,8 @@ function solve_all(termidx)
     return [[value(v) for v in x] for x in xs]
 end
 
-const term_names = (:dx, :dy, :dz, :xy, :yz, :zx,
-                    :z2, :x2, :x3, :x4, :x2z)
+const term_names = ("dx", "dy", "dz", "xy", "yz", "zx",
+                    "z2", "x2", "x3", "x4", "x2z")
 
 function pack_data(data, vals)
     solution = data["solution"]
