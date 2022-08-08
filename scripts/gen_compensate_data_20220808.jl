@@ -39,7 +39,7 @@ function solve_all(termidx)
 end
 
 const term_names = (:dx, :dy, :dz, :xy, :yz, :zx,
-                    :z2, :x2, :x3, :x4, :x2z)
+                    :z2, :x2, :x3, :x4)
 
 function pack_data(data, vals)
     solution = data["solution"]
