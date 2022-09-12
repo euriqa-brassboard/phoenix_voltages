@@ -5,6 +5,7 @@ module PhoenixVisual
 using EzXML
 using Printf
 using PyPlot
+using PhoenixVoltages.Potentials
 
 const svg_ns = ["svg" => "http://www.w3.org/2000/svg"]
 
@@ -154,6 +155,79 @@ end
 
 function Base.write(io::IO, template::TrapTemplate)
     println(io, template.doc)
+end
+
+function _get_center(fits_cache, centers, xpos_um)
+    xidx = Potentials.x_axis_to_index(fits_cache.solution, xpos_um ./ 1000)
+    return (xidx, get(centers, xidx)...)
+end
+
+function render_frame(fits_cache::Potentials.FitCache, centers, electrodes, voltages;
+                      finalize=true, # Set finalize to false if more objects needs to be added.
+                      title=nothing,
+                      # For position plotting
+                      xpos_um=nothing,
+                      pos_size=20, pos_fill="blueviolet",
+                      # For potential plotting
+                      plotx_ums=nothing, # Must be sorted
+                      plot_yoffset=0.2, plot_yscale=0.2,
+                      plot_axis=true, plot_axis_margin=200,
+                      plot_axis_stroke="gainsboro",
+                      plot_stroke="coral"
+                      )
+    template = get_template(title=title !== nothing, plot=plotx_ums !== nothing)
+
+    if title !== nothing
+        set_title!(template, title)
+    end
+
+    if xpos_um !== nothing
+        rf_center_idx = _get_center(fits_cache, centers, xpos_um)
+        ypos_um = Potentials.y_index_to_axis(fits_cache.solution,
+                                             rf_center_idx[2]) * 1000
+        c = add_circle!(template, xpos_um, ypos_um, pos_size)
+        c["fill"] = pos_fill
+    end
+
+    electrode_voltages = zip(electrodes, voltages)
+
+    if plotx_ums !== nothing
+        function get_voltage(x_um)
+            local pos = _get_center(fits_cache, centers, x_um)
+            fit = Potentials.get_multi_electrodes(fits_cache, electrode_voltages,
+                                                  (pos[3], pos[2], pos[1]))
+            return fit[0, 0, 0]
+        end
+        ax_potential = get_voltage.(plotx_ums)
+
+        if plot_axis
+            line2 = PhoenixVisual.add_plotline!(template,
+                                                [plotx_ums[1] - plot_axis_margin, plotx_ums[end] + plot_axis_margin],
+                                                [plot_yoffset, plot_yoffset])
+            line2["fill"] = "none"
+            line2["stroke"] = plot_axis_stroke
+        end
+
+        line = PhoenixVisual.add_plotline!(template, plotx_ums,
+                                           ax_potential .* plot_yscale .+ plot_yoffset)
+        line["fill"] = "none"
+        line["stroke"] = plot_stroke
+    end
+
+    voltage_map = Dict{String,Float64}()
+    for (idx, v) in electrode_voltages
+        v = v / 20
+        for name in fits_cache.solution.electrode_names[idx]
+            voltage_map[name] = v
+        end
+    end
+
+    fill_electrodes!(template, voltage_map)
+
+    if finalize
+        finalize_svg!(template)
+    end
+    return template
 end
 
 end

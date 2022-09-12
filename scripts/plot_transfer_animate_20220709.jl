@@ -29,57 +29,14 @@ const fits_cache = Potentials.FitCache(Fitting.PolyFitter(2, 2, 2), solution)
 
 const prefix = ARGS[3]
 
-function get_rf_center(xpos_um)
-    xidx = Potentials.x_axis_to_index(solution, xpos_um ./ 1000)
-    return (xidx, get(centers, xidx)...)
-end
-
 const xrange_ums = -3220:1330
 
 function create_frame(data)
-    template = PhoenixVisual.get_template(plot=true)
-
     xpos_um = data["xpos_um"]
-    rf_center_idx = get_rf_center(xpos_um)
-    ypos_um = Potentials.y_index_to_axis(solution, rf_center_idx[2]) * 1000
-
-    PhoenixVisual.set_title!(template, @sprintf("% 5d μm", xpos_um))
-
-    c = PhoenixVisual.add_circle!(template, xpos_um, ypos_um, 20)
-    c["fill"] = "blueviolet"
-
-    electrode_voltages = zip(data["electrodes"], data["voltages"])
-    function get_voltage(x_um)
-        local pos = get_rf_center(x_um)
-        fit = Potentials.get_multi_electrodes(fits_cache, electrode_voltages,
-                                              (pos[3], pos[2], pos[1]))
-        return fit[0, 0, 0]
-    end
-    ax_potential = get_voltage.(xrange_ums)
-
-    plot_yoffset = 0.2
-    line2 = PhoenixVisual.add_plotline!(template,
-                                        [xrange_ums[1] - 200, xrange_ums[end] + 200],
-                                        [plot_yoffset, plot_yoffset])
-    line2["fill"] = "none"
-    line2["stroke"] = "gainsboro"
-    line = PhoenixVisual.add_plotline!(template, xrange_ums,
-                                       ax_potential .* 0.2 .+ plot_yoffset)
-    line["fill"] = "none"
-    line["stroke"] = "coral"
-
-    voltage_map = Dict{String,Float64}()
-    for (idx, v) in electrode_voltages
-        v = v / 20
-        for name in electrode_names[idx]
-            voltage_map[name] = v
-        end
-    end
-
-    PhoenixVisual.fill_electrodes!(template, voltage_map)
-
-    PhoenixVisual.finalize_svg!(template)
-    return template
+    return PhoenixVisual.render_frame(fits_cache, centers,
+                                      data["electrodes"], data["voltages"],
+                                      title=@sprintf("% 5d μm", xpos_um),
+                                      xpos_um=xpos_um, plotx_ums=xrange_ums)
 end
 
 mkpath("$(prefix)")
