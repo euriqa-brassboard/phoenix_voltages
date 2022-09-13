@@ -14,12 +14,13 @@ const prefixes = ["compensate_20220808"=>("origin", 10),
                   "compensate_nozx_20220808"=>("nozx", 9)]
 const mapfile = load_file(ARGS[1], MapFile)
 
-function get_data_line(solution, electrode_index, mapfile::MapFile)
+function get_data_line(solution, electrode_index, id_map, mapfile::MapFile)
     nelectrodes = length(mapfile.names)
     values = Vector{Float64}(undef, nelectrodes)
     for i in 1:nelectrodes
         id = get(electrode_index, mapfile.names[i], 0)
-        values[i] = get(solution, id, 0.0)
+        idx = get(id_map, id, 0)
+        values[i] = get(solution, idx, 0.0)
     end
     return values
 end
@@ -35,7 +36,9 @@ function load_solution(name, mapfile::MapFile)
         end
     end
     xpos_um = [sol["xpos_um"] for sol in solution]
-    lines = [get_data_line(sol["voltages"], electrode_index, mapfile)
+    lines = [get_data_line(sol["voltages"], electrode_index,
+                           Dict(id=>idx for (idx, id) in enumerate(sol["electrodes"])),
+                           mapfile)
              for sol in solution]
     return (termname=termname, xpos_um=xpos_um, lines=lines)
 end
