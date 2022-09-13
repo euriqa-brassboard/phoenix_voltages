@@ -54,7 +54,7 @@ function create_frame(data)
     xpos_um = data["xpos_um"]
     title = transfer.termname * @sprintf(" @ % 5d μm", xpos_um)
     return PhoenixVisual.render_frame(fits_cache, centers,
-                                      data["electrodes"], data["voltages"],
+                                      data["electrodes"], data["voltages"] .* yscale,
                                       title=title, xpos_um=xpos_um,
                                       plotx_ums=xrange_ums, plot_yoffset=yoffset)
 end
