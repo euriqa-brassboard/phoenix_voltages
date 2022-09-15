@@ -23,14 +23,14 @@ const electrode_names = Vector{String}.(transfer.electrode_names)
 const mapfile = load_file(ARGS[1], MapFile)
 const outputprefix = ARGS[2]
 
-function get_transfer_line(data)
+function get_transfer_line(data, scale=1.0)
     voltage_map = Dict{String,Float64}()
     for (idx, v) in zip(data["electrodes"], data["voltages"])
         # This is the factor that makes sure everything is within +-10
         # for the current solution.
         v = v / 2
         for name in electrode_names[idx]
-            voltage_map[name] = v
+            voltage_map[name] = v * scale
         end
     end
     nelectrodes = length(mapfile.names)
@@ -43,6 +43,8 @@ end
 
 const transfer_lines = [(data["xpos_um"], get_transfer_line(data))
                         for data in transfer.transfer_solutions]
+const transfer_lines2 = [(data["xpos_um"], get_transfer_line(data, 0.5))
+                         for data in transfer.transfer_solutions]
 
 const xpos_ums = -3075:15:500
 const loading_pos_um = -3045
@@ -57,7 +59,7 @@ function pos_to_name(xpos_um)
     end
 end
 
-function generate_lines(xml_io)
+function generate_lines(xml_io, transfer_lines)
     node_idx = 1
     node_xpos = xpos_ums[node_idx]
     lines = Vector{Float64}[]
@@ -112,6 +114,11 @@ function generate_lines(xml_io)
     return lines
 end
 
-const transfer_file = TransferFile(mapfile, open(generate_lines, "$(outputprefix).xml", "w"))
+const transfer_file = TransferFile(mapfile, open(io->generate_lines(io, transfer_lines),
+                                                 "$(outputprefix).xml", "w"))
 
 write_file("$(outputprefix).txt", transfer_file)
+
+# Too lazy to factor out to not generate the xml... Just write the output to void...
+const transfer_file2 = TransferFile(mapfile, generate_lines(devnull, transfer_lines2))
+write_file("$(outputprefix)_2.txt", transfer_file2)
