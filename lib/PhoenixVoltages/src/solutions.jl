@@ -14,6 +14,7 @@ using ..Optimizers
 using NLsolve
 using LinearAlgebra
 using DelimitedFiles
+using MAT
 
 function find_flat_point(data::A; init=ntuple(i->(size(data, i) + 1) / 2, Val(N))) where (A<:AbstractArray{T,N} where T) where N
     fitter = Fitting.PolyFitter(ntuple(i->3, Val(N))...)
@@ -245,6 +246,27 @@ end
 
 struct CenterTracker
     zy_index::Matrix{Float64}
+end
+
+function _try_suffix(name)
+    isfile(name) && return name
+    isfile(name * ".mat") && return name * ".mat"
+    return
+end
+
+function _try_path(name)
+    if !isabspath(name)
+        p = _try_suffix(joinpath(@__DIR__, "../data", name))
+        p !== nothing && return p
+    end
+    return _try_suffix(name)
+end
+
+function CenterTracker(name::AbstractString="rf_center")
+    name = _try_path(name)
+    return matopen(name) do mat
+        return CenterTracker(read(mat, "zy_index"))
+    end
 end
 
 function Base.get(tracker::CenterTracker, xidx)
