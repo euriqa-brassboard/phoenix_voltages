@@ -106,8 +106,8 @@ function get_compensate_terms1(res::Fitting.PolyFitResult{3}, stride)
             x4=scaled_x4 * scale_4)
 end
 
-function compensate_fitter1(solution::Potential)
-    fitter = Fitting.PolyFitter(2, 2, 4)
+function compensate_fitter1(solution::Potential; sizes=(5, 5, 129))
+    fitter = Fitting.PolyFitter(2, 2, 4, sizes=sizes)
     return Potentials.FitCache(fitter, solution)
 end
 
@@ -138,11 +138,6 @@ function solve_compensate1(cache::Potentials.FitCache, pos::NTuple{3})
     return ele_select, (dx=X[:, 1], dy=X[:, 2], dz=X[:, 3],
                         xy=X[:, 4], yz=X[:, 5], zx=X[:, 6],
                         z2=X[:, 7], x2=X[:, 8], x3=X[:, 9], x4=X[:, 10])
-end
-
-function compensate_fitter1_2(solution::Potential)
-    fitter = Fitting.PolyFitter(2, 2, 4, sizes=(5, 5, 129))
-    return Potentials.FitCache(fitter, solution)
 end
 
 # Terms we care about during transport

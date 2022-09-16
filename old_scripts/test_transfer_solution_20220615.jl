@@ -20,7 +20,7 @@ const short_map = Dict{String,String}()
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const fits_cache = Solutions.compensate_fitter1_2(solution)
+const fits_cache = Solutions.compensate_fitter1(solution)
 
 const mapfile = load_file(ARGS[2], MapFile)
 

@@ -16,7 +16,7 @@ const short_map = Solutions.load_short_map(
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const fits_cache = Solutions.compensate_fitter1_2(solution)
+const fits_cache = Solutions.compensate_fitter1(solution)
 
 const prefix = joinpath(@__DIR__, "../data/compensate2_20220805")
 

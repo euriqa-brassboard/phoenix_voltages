@@ -16,7 +16,7 @@ end
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const fits_cache = Solutions.compensate_fitter1(solution)
+const fits_cache = Solutions.compensate_fitter1(solution, sizes=(3, 3, 5))
 
 const load_center_xidx = Solutions.x_axis_to_index(solution, -3.045)
 const load_center_posidx = (load_center_xidx, get(centers, load_center_xidx)...)
