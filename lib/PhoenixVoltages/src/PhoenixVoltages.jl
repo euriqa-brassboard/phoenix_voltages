@@ -10,5 +10,6 @@ include("fitting.jl")
 include("potentials.jl")
 include("optimizers.jl")
 include("solutions.jl")
+include("reconstruct.jl")
 
 end
