@@ -4,6 +4,7 @@ module Reconstruct
 
 import ..Fitting
 import ..Potentials
+import ..Solutions
 
 function _normalize_voltage_map(potential::Potentials.Potential,
                                 electrodes_voltages::AbstractDict{I} where I<:Integer)
@@ -40,6 +41,16 @@ function get_potential(potential::Potentials.Potential, electrodes_voltages)
         res .+= v .* @view(potential.data[:, :, :, ele_id])
     end
     return res
+end
+
+function get_fits(fitter::Fitting.PolyFitter{3}, data::AbstractArray{T,3} where T)
+    return Fitting.PolyFitCache(fitter, data)
+end
+
+function get_center_fit(fitcache::Fitting.PolyFitCache, xidx;
+                        centers=Solutions.CenterTracker())
+    (yidx, zidx) = get(centers, xidx)
+    return get(fitcache, (zidx, yidx, xidx))
 end
 
 end
