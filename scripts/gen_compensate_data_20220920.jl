@@ -11,7 +11,7 @@ const coeff_data, electrode_names = matopen(joinpath(@__DIR__, "../data/compensa
     return read(mat, "data"), read(mat, "electrode_names")
 end
 
-const prefix = joinpath(@__DIR__, "../data/compensate_20220920")
+const outputdir = joinpath(@__DIR__, "../data/compensate_20220920")
 
 function solve_all(termidx)
     model = Model(Ipopt.Optimizer)
@@ -48,7 +48,8 @@ function pack_data(data, vals)
 end
 
 function gen_solution(termidx)
-    matopen("$(prefix)_$(termidx).mat", "w") do mat
+    mkpath(outputdir)
+    matopen(joinpath(outputdir, "$(termidx).mat"), "w") do mat
         voltages = @time(solve_all(termidx))
         transfer_solutions = [pack_data(data, vals) for (data, vals)
                                   in zip(coeff_data, voltages)]
