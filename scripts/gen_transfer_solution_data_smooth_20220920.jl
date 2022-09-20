@@ -30,6 +30,9 @@ const coeff_data = [coeff_data_nozx[1:switchover_idx - 1];
                     coeff_data_zx[switchover_idx:end]]
 const electrode_names = electrode_names_nozx
 
+@assert size(coeff_data) == size(coeff_data_nozx)
+@assert [data["xpos_um"] for data in coeff_data] == [data["xpos_um"] for data in coeff_data_nozx]
+
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220920")
 
 function solve_all(diff_weight, flatten_max)
