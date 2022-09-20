@@ -7,9 +7,28 @@ using MAT
 import Ipopt
 using JuMP
 
-const coeff_data, electrode_names = matopen(joinpath(@__DIR__, "../data/compensate_nozx_20220920.mat")) do mat
+const coeff_data_nozx, electrode_names_nozx = matopen(joinpath(@__DIR__, "../data/compensate_nozx_20220920.mat")) do mat
     return read(mat, "data"), read(mat, "electrode_names")
 end
+
+const coeff_data_zx, electrode_names_zx = matopen(joinpath(@__DIR__, "../data/compensate_20220920.mat")) do mat
+    return read(mat, "data"), read(mat, "electrode_names")
+end
+
+@assert size(coeff_data_zx) == size(coeff_data_nozx)
+@assert electrode_names_zx == electrode_names_nozx
+@assert [data["xpos_um"] for data in coeff_data_zx] == [data["xpos_um"] for data in coeff_data_nozx]
+
+# Stitch the zx vs no-zx solutions together at around -950 um,
+# where the effect of relaxing the zx term should be minimal
+# at least on the X2 anx YZ terms.
+# The global smoothing should hopefully make any transition in the crossover area
+# smooth.
+const switchover_idx = findfirst(x->x["xpos_um"] >= -950, coeff_data_zx)
+
+const coeff_data = [coeff_data_nozx[1:switchover_idx - 1];
+                    coeff_data_nozx[switchover_idx:end]]
+const electrode_names = electrode_names_nozx
 
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220920")
 
