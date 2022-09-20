@@ -28,23 +28,30 @@ function load_solution(name)
     return (xpos_um=xpos_um, maxv=maxv, maxdiff=maxdiff)
 end
 
+const solution_ind = load_solution("transfer_20220920.mat")
 const solution_smooth = load_solution("transfer_smooth_20220920.mat")
+const solution_smooth_noglobal = load_solution("transfer_smooth_20220920_noglobal.mat")
 
 const prefix = joinpath(@__DIR__, "../imgs/transfer_20220920")
 
 figure()
+plot(solution_ind.xpos_um, solution_ind.maxv, label="Individual")
+plot(solution_smooth_noglobal.xpos_um, solution_smooth_noglobal.maxv, label="Neighbor")
 plot(solution_smooth.xpos_um, solution_smooth.maxv, label="Global")
 ylim([8, 17])
-# legend(fontsize=10, ncol=3)
+legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
 xlabel("Max (V)")
 NaCsPlot.maybe_save("$(prefix)_max")
 
 figure()
+plot(solution_ind.xpos_um[1:end - 1], solution_ind.maxdiff, label="Individual")
+plot(solution_smooth_noglobal.xpos_um[1:end - 1], solution_smooth_noglobal.maxdiff,
+     label="Neighbor")
 plot(solution_smooth.xpos_um[1:end - 1], solution_smooth.maxdiff, label="Global")
 ylim([0, 5])
-# legend(fontsize=10, ncol=3)
+legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
 ylabel("Difference (V)")
