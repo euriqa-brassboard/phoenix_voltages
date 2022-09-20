@@ -35,7 +35,7 @@ const electrode_names = electrode_names_nozx
 
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220920")
 
-function solve_all(diff_weight, diff_flatten_weight)
+function solve_all(diff_weight, diff_flatten_weight, max_flatten_weight)
     @show diff_weight
     model = Model(Ipopt.Optimizer)
     set_optimizer_attribute(model, "max_iter", 30000)
@@ -46,7 +46,11 @@ function solve_all(diff_weight, diff_flatten_weight)
     local prev_vmap
     if diff_flatten_weight > 0
         @variable(model, maxmaxdiff)
-        maxmaxweight = 0
+        maxmaxdiffweight = 0
+    end
+    if max_flatten_weight > 0
+        @variable(model, maxmaxv)
+        maxmaxvweight = 0
     end
     for data in coeff_data
         solution = data["solution"]
@@ -62,6 +66,10 @@ function solve_all(diff_weight, diff_flatten_weight)
         push!(xs, x)
         push!(maxvs, maxv)
         vmap = Dict(zip(data["electrodes"], x))
+        if max_flatten_weight > 0 && -3050 < data["xpos_um"] < 1130
+            @constraint(model, maxmaxv >= maxv)
+            maxmaxvweight += 1
+        end
         if @isdefined(prev_vmap)
             maxdiff = @variable(model)
             for k in union(keys(vmap), keys(prev_vmap))
@@ -73,16 +81,19 @@ function solve_all(diff_weight, diff_flatten_weight)
             push!(maxdiffs, maxdiff)
             if diff_flatten_weight > 0 && -3050 < data["xpos_um"] < 1130
                 @constraint(model, maxmaxdiff >= maxdiff)
-                maxmaxweight += 1
+                maxmaxdiffweight += 1
             end
         end
         prev_vmap = vmap
     end
+    obj = sum(maxvs) + sum(maxdiffs) * diff_weight
     if diff_flatten_weight > 0
-        @objective(model, Min, sum(maxvs) + sum(maxdiffs) * diff_weight + maxmaxdiff * (maxmaxweight * diff_flatten_weight))
-    else
-        @objective(model, Min, sum(maxvs) + sum(maxdiffs) * diff_weight)
+        obj = obj + maxmaxdiff * (maxmaxdiffweight * diff_flatten_weight)
     end
+    if max_flatten_weight > 0
+        obj = obj + maxmaxv * (maxmaxvweight * max_flatten_weight)
+    end
+    @objective(model, Min, obj)
     JuMP.optimize!(model)
     return [[value(v) for v in x] for x in xs]
 end
@@ -94,7 +105,7 @@ function pack_data(data, vals)
 end
 
 let
-    voltages = @time(solve_all(0.05, 1))
+    voltages = @time(solve_all(0.05, 1, 0))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
     matopen("$(prefix).mat", "w") do mat
@@ -104,7 +115,7 @@ let
 end
 
 let
-    voltages = @time(solve_all(0.05, 0))
+    voltages = @time(solve_all(0.05, 0, 0))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
     matopen("$(prefix)_noglobal.mat", "w") do mat
