@@ -100,3 +100,11 @@ matopen("$(prefix).mat", "w") do mat
     write(mat, "electrode_names", electrode_names)
     write(mat, "transfer_solutions", transfer_solutions)
 end
+
+matopen("$(prefix)_noglobal.mat", "w") do mat
+    voltages = @time(solve_all(0.05, false))
+    transfer_solutions = [pack_data(data, vals) for (data, vals)
+                              in zip(coeff_data, voltages)]
+    write(mat, "electrode_names", electrode_names)
+    write(mat, "transfer_solutions", transfer_solutions)
+end
