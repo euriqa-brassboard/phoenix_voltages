@@ -41,6 +41,25 @@ function find_all_flat_points(all_data::A; init=ntuple(i->(size(all_data, i) + 1
     return all_res
 end
 
+# EURIQA unit:
+# Unit such that electric potential that creates 1MHz trapping frequency
+# for Yb171 has the form X^2/2,
+# and the electric potential between two ions is 1/r.
+
+const N_A = 6.02214076e23
+const m_Yb171 = 170.9363315e-3 / N_A # kg
+const q_e = 1.60217663e-19 # C
+const ε_0 = 8.8541878128e-12
+
+let A = m_Yb171 * (2π * 1e6)^2 / q_e,
+    B = q_e / (4π * ε_0)
+
+    global const V_unit = cbrt(A * B^2) # V
+    global const l_unit = cbrt(B / A) # m
+end
+const l_unit_um = l_unit * 1e6 # um
+const V_unit_uV = V_unit * 1e6 # uV
+
 # Terms we care about
 # x, y, z, 2xy, 2yz, 2xz, z^2 - y^2, x^2 - (y^2 + z^2) / 2, x^3, x^4
 # Since we care about the symmetry of the x^2 and z^2 term,
@@ -98,9 +117,9 @@ function get_compensate_terms1(res::Fitting.PolyFitResult{3}, stride)
     # X3: 525 uV / (2.74 um)^3
     # X4: 525 uV / (2.74 um)^4
     scale_1 = 1e6
-    scale_2 = (2.74^2 / 525e-6)
-    scale_3 = (2.74^3 / 525e-6)
-    scale_4 = (2.74^4 / 525e-6)
+    scale_2 = (l_unit_um^2 / V_unit)
+    scale_3 = (l_unit_um^3 / V_unit)
+    scale_4 = (l_unit_um^4 / V_unit)
     return (dx=scaled_x * scale_1, dy=scaled_y * scale_1, dz=scaled_z * scale_1,
             xy=scaled_xy * scale_2, yz=scaled_yz * scale_2, zx=scaled_zx * scale_2,
             z2=zz * scale_2, x2=xx * scale_2, x3=scaled_x3 * scale_3,
@@ -197,9 +216,9 @@ function get_compensate_terms1_nozx(res::Fitting.PolyFitResult{3}, stride)
     # X3: 525 uV / (2.74 um)^3
     # X4: 525 uV / (2.74 um)^4
     scale_1 = 1e6
-    scale_2 = (2.74^2 / 525e-6)
-    scale_3 = (2.74^3 / 525e-6)
-    scale_4 = (2.74^4 / 525e-6)
+    scale_2 = (l_unit_um^2 / V_unit)
+    scale_3 = (l_unit_um^3 / V_unit)
+    scale_4 = (l_unit_um^4 / V_unit)
     return (dx=scaled_x * scale_1, dy=scaled_y * scale_1, dz=scaled_z * scale_1,
             xy=scaled_xy * scale_2, yz=scaled_yz * scale_2,
             z2=zz * scale_2, x2=xx * scale_2, x3=scaled_x3 * scale_3,
@@ -348,7 +367,7 @@ function compensation_to_file(solution::Potential, mapfile::MapFile,
     # DX is in V/m, X1 is in 525 uV / 2.74 um
     push!(term_names, "X1")
     push!(term_values, get_data_line(solution, mapfile, electrodes,
-                                     terms.dx .* (525 / 2.74)))
+                                     terms.dx .* (V_unit_uV / l_unit_um)))
     # X2
     push!(term_names, "X2")
     push!(term_values, get_data_line(solution, mapfile, electrodes, terms.x2))
@@ -437,9 +456,9 @@ function get_compensate_terms2(res::Fitting.PolyFitResult{3}, stride)
     # X3, X2Z: 525 uV / (2.74 um)^3
     # X4: 525 uV / (2.74 um)^4
     scale_1 = 1e6
-    scale_2 = (2.74^2 / 525e-6)
-    scale_3 = (2.74^3 / 525e-6)
-    scale_4 = (2.74^4 / 525e-6)
+    scale_2 = (l_unit_um^2 / V_unit)
+    scale_3 = (l_unit_um^3 / V_unit)
+    scale_4 = (l_unit_um^4 / V_unit)
     return (dx=scaled_x * scale_1, dy=scaled_y * scale_1, dz=scaled_z * scale_1,
             xy=scaled_xy * scale_2, yz=scaled_yz * scale_2, zx=scaled_zx * scale_2,
             z2=zz * scale_2, x2=xx * scale_2, x3=scaled_x3 * scale_3,
