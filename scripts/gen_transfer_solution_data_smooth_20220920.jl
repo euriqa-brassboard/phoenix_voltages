@@ -93,18 +93,22 @@ function pack_data(data, vals)
                 "xpos_um"=>data["xpos_um"])
 end
 
-matopen("$(prefix).mat", "w") do mat
+let
     voltages = @time(solve_all(0.05, 1))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
-    write(mat, "electrode_names", electrode_names)
-    write(mat, "transfer_solutions", transfer_solutions)
+    matopen("$(prefix).mat", "w") do mat
+        write(mat, "electrode_names", electrode_names)
+        write(mat, "transfer_solutions", transfer_solutions)
+    end
 end
 
-matopen("$(prefix)_noglobal.mat", "w") do mat
+let
     voltages = @time(solve_all(0.05, 0))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
-    write(mat, "electrode_names", electrode_names)
-    write(mat, "transfer_solutions", transfer_solutions)
+    matopen("$(prefix)_noglobal.mat", "w") do mat
+        write(mat, "electrode_names", electrode_names)
+        write(mat, "transfer_solutions", transfer_solutions)
+    end
 end
