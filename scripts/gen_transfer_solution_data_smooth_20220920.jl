@@ -27,7 +27,7 @@ end
 const switchover_idx = findfirst(x->x["xpos_um"] >= -950, coeff_data_zx)
 
 const coeff_data = [coeff_data_nozx[1:switchover_idx - 1];
-                    coeff_data_nozx[switchover_idx:end]]
+                    coeff_data_zx[switchover_idx:end]]
 const electrode_names = electrode_names_nozx
 
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220920")
