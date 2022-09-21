@@ -15,25 +15,37 @@ const coeff_data_zx, electrode_names_zx = matopen(joinpath(@__DIR__, "../data/co
     return read(mat, "data"), read(mat, "electrode_names")
 end
 
+const xpos_ums = [data["xpos_um"] for data in coeff_data_zx]
+
 @assert size(coeff_data_zx) == size(coeff_data_nozx)
 @assert electrode_names_zx == electrode_names_nozx
-@assert [data["xpos_um"] for data in coeff_data_zx] == [data["xpos_um"] for data in coeff_data_nozx]
+@assert [data["xpos_um"] for data in coeff_data_nozx] == xpos_ums
 
-# Stitch the zx vs no-zx solutions together at around -950 um,
-# where the effect of relaxing the zx term should be minimal
-# at least on the X2 anx YZ terms.
-# The global smoothing should hopefully make any transition in the crossover area
-# smooth.
-const switchover_idx = findfirst(x->x["xpos_um"] >= -950, coeff_data_zx)
-
-const coeff_data = [coeff_data_nozx[1:switchover_idx - 1];
-                    coeff_data_zx[switchover_idx:end]]
 const electrode_names = electrode_names_nozx
 
-@assert size(coeff_data) == size(coeff_data_nozx)
-@assert [data["xpos_um"] for data in coeff_data] == [data["xpos_um"] for data in coeff_data_nozx]
-
 const prefix = joinpath(@__DIR__, "../data/transfer_smooth_20220920")
+
+const coeff_data = Dict{String,Any}[]
+for i in 1:length(xpos_ums)
+    # Stitch the zx vs no-zx solutions together at around -950 um,
+    # where the effect of relaxing the zx term should be minimal
+    # at least on the X2 anx YZ terms.
+    # The global smoothing should hopefully make any transition in the crossover area
+    # smooth.
+    xpos_um = xpos_ums[i]
+    if xpos_um < -950
+        data = coeff_data_nozx[i]
+        solution = data["solution"]
+        x0 = solution[:, 7] .+ solution[:, 5] .* 0.75
+    else
+        data = coeff_data_zx[i]
+        solution = data["solution"]
+        x0 = solution[:, 8] .+ solution[:, 5] .* 0.75
+    end
+    @assert data["xpos_um"] == xpos_um
+    data["x0"] = x0
+    push!(coeff_data, data)
+end
 
 function solve_all(diff_weight, diff_flatten_weight, max_flatten_weight)
     @show diff_weight
@@ -53,8 +65,7 @@ function solve_all(diff_weight, diff_flatten_weight, max_flatten_weight)
         maxmaxvweight = 0
     end
     for data in coeff_data
-        solution = data["solution"]
-        x0 = solution[:, 7] .+ solution[:, 5] .* 0.75
+        x0 = data["x0"]
         B = data["free_solution"]
         nx, nt = size(B)
         @assert nx == length(x0)
@@ -104,7 +115,7 @@ function pack_data(data, vals)
 end
 
 function gen_global()
-    voltages = @time(solve_all(0.02, 1000, 100))
+    voltages = @time(solve_all(0.05, 2, 10))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
     matopen("$(prefix).mat", "w") do mat
@@ -114,7 +125,7 @@ function gen_global()
 end
 
 function gen_noglobal()
-    voltages = @time(solve_all(0.05, 0, 100))
+    voltages = @time(solve_all(0.05, 0, 10))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
     matopen("$(prefix)_noglobal.mat", "w") do mat
