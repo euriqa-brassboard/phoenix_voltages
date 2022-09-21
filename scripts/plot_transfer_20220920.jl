@@ -50,7 +50,7 @@ plot(solution_ind.xpos_um[1:end - 1], solution_ind.maxdiff, label="Individual")
 plot(solution_smooth_noglobal.xpos_um[1:end - 1], solution_smooth_noglobal.maxdiff,
      label="Neighbor")
 plot(solution_smooth.xpos_um[1:end - 1], solution_smooth.maxdiff, label="Global")
-ylim([0, 15])
+ylim([0, 2.5])
 legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
