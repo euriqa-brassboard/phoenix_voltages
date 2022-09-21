@@ -301,8 +301,9 @@ end
 Base.get(cache::FitCache, name::AbstractString) =
     get(cache, cache.solution.electrode_index[name])
 
-Base.get(cache::FitCache, electrode::Union{AbstractString,Integer}, pos::NTuple{3}) =
-    get(get(cache, electrode), pos)
+Base.get(cache::FitCache, electrode::Union{AbstractString,Integer}, pos::NTuple{3};
+         fit_center=pos) =
+    get(get(cache, electrode), pos; fit_center=fit_center)
 
 function get_multi_electrodes(cache::FitCache, electrodes_voltages, pos::NTuple{3})
     local res

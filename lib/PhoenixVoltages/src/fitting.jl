@@ -189,9 +189,10 @@ function _best_fit_idx(ntotal, kernel_size, pos)
     return idx
 end
 
-function Base.get(cache::PolyFitCache{N}, pos::NTuple{N}) where N
+function Base.get(cache::PolyFitCache{N}, pos::NTuple{N};
+                  fit_center=pos) where N
     kernel_sizes = cache.fitter.sizes
-    idxs = _best_fit_idx.(size(cache.data), kernel_sizes, pos)
+    idxs = _best_fit_idx.(size(cache.data), kernel_sizes, fit_center)
     fit = get_internal(cache, idxs)
     return shift(fit, pos .- (kernel_sizes .- 1) ./ 2 .- idxs)
 end
