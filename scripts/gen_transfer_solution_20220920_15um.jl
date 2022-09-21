@@ -29,9 +29,6 @@ function get_transfer_line(data, scale=1.0)
         # This is the factor that makes sure everything is within +-10
         # for the current solution.
         v = v * scale
-        if v > 10 || v < -10
-            @warn "Voltage out of range: $v"
-        end
         for name in electrode_names[idx]
             voltage_map[name] = v
         end
@@ -100,6 +97,14 @@ function generate_lines(xml_io, transfer_lines)
             break
         end
         node_xpos = xpos_ums[node_idx]
+    end
+
+    for line in lines
+        for v in line
+            if v > 10 || v < -10
+                @warn "Voltage out of range: $v"
+            end
+        end
     end
 
     @assert @isdefined(loading_line) && found_center
