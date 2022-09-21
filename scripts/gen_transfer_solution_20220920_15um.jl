@@ -28,7 +28,7 @@ function get_transfer_line(data, scale=1.0)
     for (idx, v) in zip(data["electrodes"], data["voltages"])
         # This is the factor that makes sure everything is within +-10
         # for the current solution.
-        v = v / 2 * scale
+        v = v * scale
         if v > 10 || v < -10
             @warn "Voltage out of range: $v"
         end
@@ -44,7 +44,8 @@ function get_transfer_line(data, scale=1.0)
     return values
 end
 
-const transfer_lines = [(data["xpos_um"], get_transfer_line(data))
+# 0.5 here corresponds to a X2 of 0.5 and QYZ of 0.375.
+const transfer_lines = [(data["xpos_um"], get_transfer_line(data, 0.5))
                         for data in transfer.transfer_solutions]
 
 const xpos_ums = -3075:15:500
