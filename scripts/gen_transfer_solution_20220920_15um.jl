@@ -28,9 +28,12 @@ function get_transfer_line(data, scale=1.0)
     for (idx, v) in zip(data["electrodes"], data["voltages"])
         # This is the factor that makes sure everything is within +-10
         # for the current solution.
-        v = v / 2
+        v = v / 2 * scale
+        if v > 10 || v < -10
+            @warn "Voltage out of range: $v"
+        end
         for name in electrode_names[idx]
-            voltage_map[name] = v * scale
+            voltage_map[name] = v
         end
     end
     nelectrodes = length(mapfile.names)
