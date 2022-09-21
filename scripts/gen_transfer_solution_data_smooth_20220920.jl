@@ -66,7 +66,7 @@ function solve_all(diff_weight, diff_flatten_weight, max_flatten_weight)
         push!(xs, x)
         push!(maxvs, maxv)
         vmap = Dict(zip(data["electrodes"], x))
-        if max_flatten_weight > 0 && -3050 < data["xpos_um"] < 1130
+        if max_flatten_weight > 0 && -2500 < data["xpos_um"] < 1000
             @constraint(model, maxmaxv >= maxv)
             maxmaxvweight += 1
         end
@@ -79,7 +79,7 @@ function solve_all(diff_weight, diff_flatten_weight, max_flatten_weight)
                 @constraint(model, maxdiff >= v2 - v1)
             end
             push!(maxdiffs, maxdiff)
-            if diff_flatten_weight > 0 && -3050 < data["xpos_um"] < 1130
+            if diff_flatten_weight > 0 && -3050 < data["xpos_um"] < 1000
                 @constraint(model, maxmaxdiff >= maxdiff)
                 maxmaxdiffweight += 1
             end
@@ -105,7 +105,7 @@ function pack_data(data, vals)
 end
 
 let
-    voltages = @time(solve_all(0.05, 1, 0))
+    voltages = @time(solve_all(0.02, 1000, 100))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
     matopen("$(prefix).mat", "w") do mat
@@ -115,7 +115,7 @@ let
 end
 
 let
-    voltages = @time(solve_all(0.05, 0, 0))
+    voltages = @time(solve_all(0.05, 0, 100))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
     matopen("$(prefix)_noglobal.mat", "w") do mat
