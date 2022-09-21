@@ -104,7 +104,7 @@ function pack_data(data, vals)
                 "xpos_um"=>data["xpos_um"])
 end
 
-let
+function gen_global()
     voltages = @time(solve_all(0.02, 1000, 100))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
@@ -114,7 +114,7 @@ let
     end
 end
 
-let
+function gen_noglobal()
     voltages = @time(solve_all(0.05, 0, 100))
     transfer_solutions = [pack_data(data, vals) for (data, vals)
                               in zip(coeff_data, voltages)]
@@ -122,4 +122,15 @@ let
         write(mat, "electrode_names", electrode_names)
         write(mat, "transfer_solutions", transfer_solutions)
     end
+end
+
+if isempty(ARGS)
+    gen_global()
+    gen_noglobal()
+elseif ARGS[1] == "g"
+    gen_global()
+elseif ARGS[1] == "ng"
+    gen_noglobal()
+else
+    error("Invalid argument: $(ARGS)")
 end
