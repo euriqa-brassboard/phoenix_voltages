@@ -99,7 +99,6 @@ function solve_all(diff_weight, diff_flatten_weight, max_flatten_weight)
 end
 
 function pack_data(data, vals)
-    solution = data["solution"]
     return Dict("electrodes"=>data["electrodes"], "voltages"=>vals,
                 "xpos_um"=>data["xpos_um"])
 end
