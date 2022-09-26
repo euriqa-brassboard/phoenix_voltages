@@ -53,4 +53,13 @@ function get_center_fit(fitcache::Fitting.PolyFitCache, xidx;
     return get(fitcache, (zidx, yidx, xidx))
 end
 
+function get_center_fit(cache::Potentials.FitCache, electrodes_voltages, xidx;
+                        centers=Solutions.CenterTracker())
+    potential = cache.solution
+    electrodes_voltages = _normalize_voltage_map(potential, electrodes_voltages)
+    (yidx, zidx) = get(centers, xidx)
+    return Potentials.get_multi_electrodes(cache, electrodes_voltages,
+                                           (zidx, yidx, xidx))
+end
+
 end
