@@ -45,10 +45,11 @@ function load_solution(name)
     data = matread(joinpath(@__DIR__, "../data", name))
     termname = data["termname"]
     solution = data["transfer_solutions"]
-    xpos_um = [sol["xpos_um"] for sol in solution]
+    xpos_um = [sol["xpos_um"] for sol in solution if -1000 <= sol["xpos_um"] <= 1000]
     electrode_names = data["electrode_names"]
     fits = [get_all_fits(sol["xpos_um"], sol["voltages"],
-                         sol["electrodes"], electrode_names) for sol in solution]
+                         sol["electrodes"], electrode_names) for sol in solution
+                             if -1000 <= sol["xpos_um"] <= 1000]
     return (termname=termname, xpos_um=xpos_um,
             fits=Dict{Symbol,Vector{Float64}}(term_name=>[getfield(fit, term_name)
                                                      for fit in fits]
