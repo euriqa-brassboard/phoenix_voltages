@@ -16,6 +16,8 @@ const prefixes = [
     "compensate_x2z_20220920"=>("x2z", 11),
     "compensate_nozx_20220920"=>("nozx", 9)
 ]
+const prefix = joinpath(@__DIR__, "../imgs/compensate_20220920_diff")
+
 const potential_file = ARGS[1]
 const potential = Potentials.import_pillbox_64(potential_file)
 const fits_cache = Solutions.compensate_fitter1(potential, sizes=(5, 5, 15))
@@ -96,6 +98,7 @@ for (name, solution) in solutions
         legend(ncol=4, fontsize=8)
     end
     tight_layout()
+    NaCsPlot.maybe_save("$(prefix)_$(name)")
 end
 
 NaCsPlot.maybe_show()
