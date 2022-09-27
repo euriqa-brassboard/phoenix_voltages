@@ -92,7 +92,7 @@ for (name, solution) in solutions
                      label=term_name2)
             end
         end
-        legend()
+        legend(ncol=4, fontsize=8)
     end
     tight_layout()
 end
