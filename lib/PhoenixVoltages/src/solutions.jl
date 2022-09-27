@@ -499,5 +499,9 @@ function solve_compensate2(cache::Potentials.FitCache, pos::NTuple{3})
                         x2z=X[:, 11])
 end
 
+function compensate_fitter3(solution::Potential; sizes=(5, 5, 77))
+    fitter = Fitting.PolyFitter(2, 2, 8, sizes=sizes)
+    return Potentials.FitCache(fitter, solution)
+end
 
 end
