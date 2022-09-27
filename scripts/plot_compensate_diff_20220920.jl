@@ -35,6 +35,11 @@ function get_all_fits(xpos_um, voltages, electrodes, electrode_names)
 end
 
 const term_names = [:dx, :dy, :dz, :xy, :yz, :zx, :z2, :x2, :x3, :x4, :x2z]
+const term_scale = Dict{String,Float64}("dx"=>500, "dy"=>1000, "dz"=>500,
+                                        "xy"=>0.25, "yz"=>0.5,
+                                        "zx"=>0.125, "z2"=>0.125,
+                                        "x2"=>0.1, "x3"=>0.01, "x4"=>0.001,
+                                        "x2z"=>0.003)
 
 function load_solution(name)
     data = matread(joinpath(@__DIR__, "../data", name))
@@ -77,10 +82,13 @@ for (name, solution) in solutions
         subplot(4, 3, i)
         title(term_name)
         terms = solution.terms[term_name]
+        base_scale = 1 / term_scale[String(term_name)]
         for term_name2 in term_names
             term_name2 = String(term_name2)
             if term_name2 in keys(terms)
-                plot(solution.xpos_um, terms[term_name2], label=term_name2)
+                s = base_scale * term_scale[term_name2]
+                plot(solution.xpos_um, terms[term_name2] .* s,
+                     label=term_name2)
             end
         end
         legend()
