@@ -18,7 +18,7 @@ const prefixes = [
 ]
 const potential_file = ARGS[1]
 const potential = Potentials.import_pillbox_64(potential_file)
-const fits_cache = Solutions.compensate_fitter1(potential, sizes=(5, 5, 25))
+const fits_cache = Solutions.compensate_fitter1(potential, sizes=(5, 5, 15))
 const centers = Solutions.CenterTracker()
 
 function get_all_fits(xpos_um, voltages, electrodes, electrode_names)
