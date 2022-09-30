@@ -10,9 +10,7 @@ using PhoenixVoltages.Fitting
 using MAT
 using LinearAlgebra
 
-const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
-    return Solutions.CenterTracker(read(mat, "zy_index"))
-end
+const centers = Solutions.CenterTracker()
 const short_map = Solutions.load_short_map(
     joinpath(@__DIR__, "../data/electrode_short_202206.csv"))
 
