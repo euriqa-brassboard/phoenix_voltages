@@ -18,10 +18,35 @@ function gen_minmax_model(B, x0)
     return model, t
 end
 
-function optimize_minmax_span(B, x0)
-    model, t = gen_minmax_model(B, x0)
-    JuMP.optimize!(model)
-    return B * value.(t) .+ x0
+function gen_minmax_model_with_limit_terms(B, x0, limited)
+    nx, nt = size(B)
+    @assert nx == length(x0)
+    @assert nx == size(limited, 1)
+    nl = size(limited, 2)
+
+    model = Model(NLopt.Optimizer)
+    set_optimizer_attribute(model, "algorithm", :LN_COBYLA)
+    @variable(model, t[1:nt])
+    @variable(model, l[1:nl])
+    @variable(model, maxv)
+    @constraint(model, maxv .>= B * t .+ x0 .+ limited * l)
+    @constraint(model, maxv .>= .-(B * t .+ x0 .+ limited * l))
+    @constraint(model, l .<= 1)
+    @constraint(model, l .>= -1)
+    @objective(model, Min, maxv)
+    return model, t, l
+end
+
+function optimize_minmax_span(B, x0; limited=nothing)
+    if limited === nothing
+        model, t = gen_minmax_model(B, x0)
+        JuMP.optimize!(model)
+        return B * value.(t) .+ x0
+    else
+        model, t, l = gen_minmax_model_with_limit_terms(B, x0, limited)
+        JuMP.optimize!(model)
+        return B * value.(t) .+ x0 .+ limited * value.(l)
+    end
 end
 
 function optimize_minmax(A, y::AbstractVector)
