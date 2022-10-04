@@ -28,17 +28,17 @@ function load_solution(name)
     return (xpos_um=xpos_um, maxv=maxv, maxdiff=maxdiff)
 end
 
-const solution_ind = load_solution("merge_20220929.mat")
-# const solution_smooth = load_solution("merge_smooth_20220929.mat")
-# const solution_smooth_noglobal = load_solution("merge_smooth_20220929_noglobal.mat")
+const solution_ind = load_solution("merge_data_20221001.mat")
+# const solution_smooth = load_solution("merge_smooth_20221001.mat")
+# const solution_smooth_noglobal = load_solution("merge_smooth_20221001_noglobal.mat")
 
-const prefix = joinpath(@__DIR__, "../imgs/merge_20220929")
+const prefix = joinpath(@__DIR__, "../imgs/merge_20221001")
 
 figure()
 plot(solution_ind.xpos_um, solution_ind.maxv ./ 3, label="Individual")
 # plot(solution_smooth_noglobal.xpos_um, solution_smooth_noglobal.maxv, label="Neighbor")
 # plot(solution_smooth.xpos_um, solution_smooth.maxv, label="Global")
-ylim([4, 9])
+# ylim([4, 9])
 legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
@@ -50,7 +50,7 @@ plot(solution_ind.xpos_um[1:end - 1], solution_ind.maxdiff ./ 3, label="Individu
 # plot(solution_smooth_noglobal.xpos_um[1:end - 1], solution_smooth_noglobal.maxdiff,
 #      label="Neighbor")
 # plot(solution_smooth.xpos_um[1:end - 1], solution_smooth.maxdiff, label="Global")
-ylim([0, 2.5])
+# ylim([0, 2.5])
 legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
