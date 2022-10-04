@@ -151,24 +151,26 @@ function optimize_trap_model!(builder::TrapModelBuilder)
     return [[value(v) for v in v] for v in builder.model.vs]
 end
 
-function function_block(f, xrange, yrange, zrange)
-    return [f(x, y, z) for z in zrange, y in yrange, x in xrange]
+struct MultiFitterCache
+    potential::Potential
+    fit_caches::Dict{Int,Potentials.FitCache}
+    function MultiFitterCache(potential::Potential)
+        return new(potential, Dict{Int,Potentials.FitCache}())
+    end
 end
 
-function modify_block(f, block, xrange, yrange, zrange)
-    return [begin
-                zidx, yidx, xidx = Tuple(idx)
-                f(block[idx], xrange[xidx], yrange[yidx], zrange[zidx])
-            end for idx in CartesianIndices(block)]
+Base.get(cache::MultiFitterCache, xsize) = get!(cache.fit_caches, xsize) do
+    if xsize > 50
+        order = 8
+    elseif xsize > 25
+        order = 6
+    else
+        order = 4
+    end
+    fitter = Fitting.PolyFitter(2, 2, order, sizes=(5, 5, xsize))
+    return Potentials.FitCache(fitter, cache.potential)
 end
-
-function zero_block(xrange, yrange, zrange)
-    return zeros(length(zrange), length(yrange), length(xrange))
-end
-
-function one_block(xrange, yrange, zrange)
-    return ones(length(zrange), length(yrange), length(xrange))
-end
+const multi_fit_cache = MultiFitterCache(solution)
 
 flatten_blocks(blocks::Union{NTuple{N,A} where N,Vector{A}} where A <: Array{Float64}) =
     reduce(vcat, vec.(blocks))
@@ -278,7 +280,7 @@ const fit_shrink_start_um = -((move_fit_init_mid_size + center_fit_init_mid_size
 const fit_shrink_end_um = -((move_fit_shrunk_mid_size + center_fit_shrunk_mid_size) +
     (move_fit_shrunk_total_size + center_fit_shrunk_total_size) * min_fit_gap_ratio)
 
-function get_xranges(xpos_um)
+function get_xspans(xpos_um)
     # The caller should handle the center case explicitly
     @assert xpos_um <= -1
     if xpos_um <= fit_shrink_end_um
@@ -306,170 +308,85 @@ function get_xranges(xpos_um)
     return (move_left, move_right), (center_left, center_right)
 end
 
-center_range(c, d) = round(Int, c - d):round(Int, c + d)
-
-const y_fit_size = 1.5
-const z_fit_size = 1.5
 const center_pos_idx = get_rf_center(center_um)
-const center_pos_idx_int = round.(Int, center_pos_idx)
-const center_yrange = center_range(center_pos_idx[2], y_fit_size)
-const center_zrange = center_range(center_pos_idx[3], z_fit_size)
-function get_ranges0()
-    xrange = center_range(center_pos_idx[1], move_fit_final_out_size)
-    return xrange, center_yrange, center_zrange
+function get_xranges0()
+    return round(Int, center_pos_idx[1] - move_fit_final_out_size):round(Int, center_pos_idx[1] + move_fit_final_out_size)
 end
-function get_ranges1(xpos_um, move_pos_idx)
-    (move_left, move_right), (center_left, center_right) = get_xranges(xpos_um)
+function get_xranges1(xpos_um, move_pos_idx)
+    (move_left, move_right), (center_left, center_right) = get_xspans(xpos_um)
 
     move_left = round(Int, move_pos_idx[1] + move_left)
     move_right = round(Int, move_pos_idx[1] + move_right)
-    move_yrange = center_range(move_pos_idx[2], y_fit_size)
-    move_zrange = center_range(move_pos_idx[2], z_fit_size)
 
     center_left = round(Int, center_pos_idx[1] + center_left)
     center_right = round(Int, center_pos_idx[1] + center_right)
     @assert center_left > move_right
-    return ((move_left:move_right, move_yrange, move_zrange),
-            (center_left:center_right, center_yrange, center_zrange))
+    return (move_left:move_right, center_left:center_right)
 end
 
-function weight_block(center, xrange, yrange, zrange, xscale)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) / xscale
-        return 1 / (1 + x^2)
-    end
+@enum(TermIndex, C=1, DX=2, DY=3, DZ=4, XY=5, YZ=6, ZX=7, Z2=8, X2=9)
+
+function term_block(term, scale)
+    block = zeros(Int(typemax(TermIndex)))
+    block[Int(term)] = scale
+    return block
 end
 
-function dx_block(center, xrange, yrange, zrange, scale=1)
-    # V/m
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) * stride_um[3] / 1e6
-        # y = (y - center[2]) * stride_um[2] / 1e6
-        # z = (z - center[3]) * stride_um[1] / 1e6
-        return x * scale
-    end
+c_block(scale=1) = term_block(C, scale)
+dx_block(scale=1) = term_block(DX, scale)
+dy_block(scale=1) = term_block(DY, scale)
+dz_block(scale=1) = term_block(DZ, scale)
+
+xy_block(scale=1) = term_block(XY, scale)
+yz_block(scale=1) = term_block(YZ, scale)
+zx_block(scale=1) = term_block(ZX, scale)
+
+z2_block(scale=1) = term_block(Z2, scale)
+x2_block(scale=1) = term_block(X2, scale)
+
+function weight_block()
+    block = zeros(Int(typemax(TermIndex)))
+    block[Int(C)] = 1
+    block[Int(DX)] = 1
+    block[Int(DY)] = 1
+    block[Int(DZ)] = 1
+
+    block[Int(XY)] = 0.7
+    block[Int(YZ)] = 0.7
+    block[Int(ZX)] = 0.7
+
+    block[Int(Z2)] = 0.7
+    block[Int(X2)] = 1
+
+    return block
 end
 
-function x2_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return (x^2 - y^2 / 2 - z^2 / 2) / 2 * V_unit * scale
-    end
-end
+function potential_block(ele, center, xrange)
+    xleft = first(xrange)
+    xright = last(xrange)
+    xsize = xright - xleft + 1
+    fit_cache = get(multi_fit_cache, xsize)
+    center_r = (center[3], center[2], center[1])
+    fit_center_r = (center[3], center[2], (xright + xleft) / 2)
 
-function x3_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) * stride_um[3] / l_unit_um
-        # y = (y - center[2]) * stride_um[2] / l_unit_um
-        # z = (z - center[3]) * stride_um[1] / l_unit_um
-        return x^3 / 6 * V_unit * scale
-    end
-end
+    fit = get(fit_cache, ele, center_r, fit_center=fit_center_r)
+    terms = Solutions.get_compensate_terms1(fit, stride_um)
 
-function x4_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) * stride_um[3] / l_unit_um
-        # y = (y - center[2]) * stride_um[2] / l_unit_um
-        # z = (z - center[3]) * stride_um[1] / l_unit_um
-        return x^4 / 24 * V_unit * scale
-    end
-end
+    block = zeros(Int(typemax(TermIndex)))
 
-function xy_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        # z = (z - center[3]) * stride_um[1] / l_unit_um
-        return x * y * V_unit * scale
-    end
-end
+    block[Int(C)] = fit[0, 0, 0]
+    block[Int(DX)] = terms.dx
+    block[Int(DY)] = terms.dy
+    block[Int(DZ)] = terms.dz
 
-function yz_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        # x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return y * z * V_unit * scale
-    end
-end
+    block[Int(XY)] = terms.xy
+    block[Int(YZ)] = terms.yz
+    block[Int(ZX)] = terms.zx
 
-function zx_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        x = (x - center[1]) * stride_um[3] / l_unit_um
-        # y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return z * x * V_unit * scale
-    end
-end
+    block[Int(Z2)] = terms.z2
+    block[Int(X2)] = terms.x2
 
-function z2_block(center, xrange, yrange, zrange, scale=1)
-    return function_block(xrange, yrange, zrange) do x, y, z
-        # x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return (z^2 - y^2) / 2 * V_unit * scale
-    end
-end
-
-function block_add_z(block, center, xrange, yrange, zrange, scale=1)
-    return modify_block(block, xrange, yrange, zrange) do v, x, y, z
-        # x = (x - center[1]) * stride_um[3] / l_unit_um
-        # y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return v * z * scale
-    end
-end
-
-function block_add_y(block, center, xrange, yrange, zrange, scale=1)
-    return modify_block(block, xrange, yrange, zrange) do v, x, y, z
-        # x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        # z = (z - center[3]) * stride_um[1] / l_unit_um
-        return v * y * scale
-    end
-end
-
-function block_add_zy(block, center, xrange, yrange, zrange, scale=1)
-    return modify_block(block, xrange, yrange, zrange) do v, x, y, z
-        # x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return v * y * z * scale
-    end
-end
-
-function block_add_z2(block, center, xrange, yrange, zrange, scale=1)
-    return modify_block(block, xrange, yrange, zrange) do v, x, y, z
-        # x = (x - center[1]) * stride_um[3] / l_unit_um
-        y = (y - center[2]) * stride_um[2] / l_unit_um
-        z = (z - center[3]) * stride_um[1] / l_unit_um
-        return v * (z^2 - y^2) / 2 * scale
-    end
-end
-
-const weight_point1_um = -400
-const center_weight_size1 = center_fit_init_size
-const move_weight_size1 = move_fit_init_size
-
-const weight_point2_um = -50
-const center_weight_size2 = center_fit_init_size / 2
-const move_weight_size2 = move_fit_init_size / 2
-
-const weight_point3_um = center_um
-const center_weight_size3 = center_fit_init_size
-const move_weight_size3 = center_fit_init_size # Ramp to the merged value
-function get_weight_size(xpos_um)
-    if xpos_um <= weight_point2_um
-        r = get_ratio(xpos_um, weight_point1_um, weight_point2_um)
-        return (interpolate(r, center_weight_size1, center_weight_size2),
-                interpolate(r, move_weight_size1, move_weight_size2))
-    else
-        r = get_ratio(xpos_um, weight_point2_um, weight_point3_um)
-        return (interpolate(r, move_weight_size2, move_weight_size3),
-                interpolate(r, center_weight_size2, center_weight_size3))
-    end
+    return block
 end
 
 const max_shape_relax_factor = 1
@@ -497,7 +414,7 @@ function get_dc_level_limit(xpos_um)
     return interpolate(r, dc_level_limit_max, 0)
 end
 
-function construct_frame(eles, target, weight, freedom, ranges)
+function construct_frame(eles, target, weight, freedom, ranges, centers)
     neles = length(eles)
     _target = flatten_blocks(target)
     npoints = length(_target)
@@ -505,91 +422,76 @@ function construct_frame(eles, target, weight, freedom, ranges)
     @assert length(_weight) == npoints
     _freedom = [(flatten_blocks(f[1]), (f[2], f[3])) for f in freedom]
     electrode_potentials = Matrix{Float64}(undef, npoints, neles)
-    potential_block(ele, range) = solution.data[range[3], range[2], range[1], ele]
     for i in 1:neles
         ele = eles[i]
-        electrode_potentials[:, i] = flatten_blocks(potential_block.(ele, ranges))
+        electrode_potentials[:, i] = flatten_blocks(potential_block.(ele, centers,
+                                                                     ranges))
     end
     return Frame(_target, _weight, _freedom, eles, electrode_potentials)
 end
 
 function create_frame0(eles)
-    center_range = get_ranges0()
+    center_xrange = get_xranges0()
 
-    target_x2 = x2_block(center_pos_idx, center_range..., center_x2)
-    target_yz = xy_block(center_pos_idx, center_range..., center_x2 / 2)
+    target_x2 = x2_block(center_x2)
+    target_yz = xy_block(center_x2 / 2)
     target = target_x2 .+ target_yz
 
-    weight = weight_block(center_pos_idx, center_range..., center_weight_size3)
+    weight = weight_block()
 
-    freedom = Tuple{Array{Float64,3},Float64,Float64}[]
-    push!(freedom, (x4_block(center_pos_idx, center_range...), -0.001, 0.001))
-    push!(freedom, (block_add_z(target_x2, center_pos_idx, center_range...), -Inf, Inf))
-    push!(freedom, (block_add_y(target_x2, center_pos_idx, center_range...), -Inf, Inf))
-    push!(freedom, (one_block(center_range...), -Inf, Inf))
+    freedom = Tuple{Vector{Float64},Float64,Float64}[]
+    push!(freedom, (c_block(), -Inf, Inf))
 
-    return construct_frame(eles, target, weight, freedom, (center_range,))
+    return construct_frame(eles, target, weight, freedom,
+                           (center_xrange,), (center_pos_idx,))
 end
 
 function create_frame1(eles, xpos_um)
     move_pos_idx = get_rf_center(xpos_um)
-    move_range, center_range = get_ranges1(xpos_um, move_pos_idx)
+    move_xrange, center_xrange = get_xranges1(xpos_um, move_pos_idx)
 
-    move_weight_size, center_weight_size = get_weight_size(xpos_um)
     shape_relax = get_shape_relax_factor(xpos_um)
 
     center_yz = center_x2 / 2
-    center_target_x2 = x2_block(center_pos_idx, center_range..., center_x2)
-    center_target_yz = xy_block(center_pos_idx, center_range..., center_yz)
+    center_target_x2 = x2_block(center_x2)
+    center_target_yz = xy_block(center_yz)
     center_target = center_target_x2 .+ center_target_yz
 
     move_x2 = get_move_x2(xpos_um)
     move_yz = move_x2 / 2
-    move_target_x2 = x2_block(move_pos_idx, move_range..., move_x2)
-    move_target_yz = xy_block(move_pos_idx, move_range..., move_yz)
+    move_target_x2 = x2_block(move_x2)
+    move_target_yz = xy_block(move_yz)
     move_target = move_target_x2 .+ move_target_yz
     target = center_target, move_target
 
-    center_weight = weight_block(center_pos_idx, center_range...,
-                                 center_weight_size)
-    move_weight = weight_block(move_pos_idx, move_range...,
-                               move_weight_size)
+    center_weight = weight_block()
+    move_weight = weight_block()
     weight = center_weight, move_weight
 
-    center_zero = zero_block(center_range...)
-    move_zero = zero_block(move_range...)
-    center_one = one_block(center_range...)
-    move_one = one_block(move_range...)
+    center_zero = c_block(0)
+    move_zero = c_block(0)
+    center_one = c_block(1)
+    move_one = c_block(1)
 
-    freedom = Tuple{NTuple{2,Array{Float64,3}},Float64,Float64}[]
-    push!(freedom, ((xy_block(center_pos_idx, center_range...),
-                     move_zero), -Inf, Inf))
-    push!(freedom, ((yz_block(center_pos_idx, center_range...), move_zero),
+    freedom = Tuple{NTuple{2,Vector{Float64}},Float64,Float64}[]
+    push!(freedom, ((xy_block(), move_zero), -Inf, Inf))
+    push!(freedom, ((yz_block(), move_zero),
                     -center_yz * shape_relax / 3, center_yz * shape_relax / 3))
-    push!(freedom, ((z2_block(center_pos_idx, center_range...), move_zero),
+    push!(freedom, ((z2_block(), move_zero),
                     -center_yz * shape_relax / 3, center_yz * shape_relax / 3))
-    push!(freedom, ((x2_block(center_pos_idx, center_range...), move_zero),
+    push!(freedom, ((x2_block(), move_zero),
                     -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
-    push!(freedom, ((zx_block(center_pos_idx, center_range...), move_zero),
+    push!(freedom, ((zx_block(), move_zero),
                     -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
-    push!(freedom, ((x4_block(center_pos_idx, center_range...),
-                     move_zero), -Inf, Inf))
-    push!(freedom, ((block_add_z(center_target_x2, center_pos_idx, center_range...),
-                     move_zero), -Inf, Inf))
-    push!(freedom, ((block_add_y(center_target_x2, center_pos_idx, center_range...),
-                     move_zero), -Inf, Inf))
 
-    push!(freedom, ((center_zero, xy_block(move_pos_idx, move_range...)), -Inf, Inf))
-    push!(freedom, ((center_zero, yz_block(move_pos_idx, move_range...)),
+    push!(freedom, ((center_zero, xy_block()), -Inf, Inf))
+    push!(freedom, ((center_zero, yz_block()),
                     -move_yz * shape_relax / 3, move_yz * shape_relax / 3))
-    push!(freedom, ((center_zero, z2_block(move_pos_idx, move_range...)),
+    push!(freedom, ((center_zero, z2_block()),
                     -move_yz * shape_relax / 3, move_yz * shape_relax / 3))
-    push!(freedom, ((center_zero, x2_block(move_pos_idx, move_range...)),
+    push!(freedom, ((center_zero, x2_block()),
                     -move_x2 * shape_relax / 4, move_x2 * shape_relax / 4))
-    push!(freedom, ((center_zero, zx_block(move_pos_idx, move_range...)), -Inf, Inf))
-    push!(freedom, ((center_zero, x4_block(move_pos_idx, move_range...)), -Inf, Inf))
-    push!(freedom, ((center_zero, block_add_z(move_target_x2, move_pos_idx, move_range...)), -Inf, Inf))
-    push!(freedom, ((center_zero, block_add_y(move_target_x2, move_pos_idx, move_range...)), -Inf, Inf))
+    push!(freedom, ((center_zero, zx_block()), -Inf, Inf))
 
     push!(freedom, ((center_one, move_one), -Inf, Inf))
 
@@ -597,7 +499,8 @@ function create_frame1(eles, xpos_um)
     push!(freedom, ((center_one, .-move_one), -dc_level_limit, dc_level_limit))
 
     return construct_frame(eles, target, weight, freedom,
-                           (center_range, move_range))
+                           (center_xrange, move_xrange),
+                           (center_pos_idx, move_pos_idx))
 end
 
 function create_frame(xpos_um)
