@@ -526,7 +526,7 @@ for xpos_um in xpos_ums
         push!(results, Dict("electrodes"=>eles, "xpos_um"=>xpos_um))
     end
 end
-@time finalize_trap_model!(builder, TrapWeights(1, 0.1, 0.1, 1, 1))
+@time finalize_trap_model!(builder, TrapWeights(100, 0.1, 0.1, 1, 1))
 for (rd, vals) in zip(results, optimize_trap_model!(builder))
     rd["voltages"] = vals
 end
