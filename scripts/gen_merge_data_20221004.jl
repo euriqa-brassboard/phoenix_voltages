@@ -229,13 +229,14 @@ function get_electrodes(xpos_um)
 end
 
 const move_x2_init = 3.0
+const move_x2_final = 2.0
 const center_x2 = 1.0
 
 const move_relax_start_um = -250
-const move_relax_end_um = -100
+const move_relax_end_um = -150
 function get_move_x2(xpos_um)
     r = get_ratio(xpos_um, move_relax_start_um, move_relax_end_um)
-    return interpolate(r, move_x2_init, center_x2)
+    return interpolate(r, move_x2_init, move_x2_final)
 end
 
 const stride_um = solution.stride .* 1000
@@ -329,27 +330,33 @@ function get_xranges1(xpos_um, move_pos_idx)
     return (move_left:move_right, center_left:center_right)
 end
 
-@enum(TermIndex, C=1, DX=2, DY=3, DZ=4, XY=5, YZ=6, ZX=7, Z2=8, X2=9)
+@enum(TermIndex, C=1, DX=2, DY=3, DZ=4, XY=5, YZ=6, ZX=7, Z2=8, X2=9,
+      NTerms1=9, X3=10, X4=11, NTerms2=11)
 
-function term_block(term, scale)
-    block = zeros(Int(typemax(TermIndex)))
+function zero_block(version)
+    @assert version == 1 || version == 2
+    return zeros(version == 1 ? Int(NTerms1) : Int(NTerms2))
+end
+
+function term_block(term, scale, version)
+    block = zero_block(version)
     block[Int(term)] = scale
     return block
 end
 
-c_block(scale=1) = term_block(C, scale)
-dx_block(scale=1) = term_block(DX, scale)
-dy_block(scale=1) = term_block(DY, scale)
-dz_block(scale=1) = term_block(DZ, scale)
+c_block(scale=1, version=1) = term_block(C, scale, version)
+dx_block(scale=1, version=1) = term_block(DX, scale, version)
+dy_block(scale=1, version=1) = term_block(DY, scale, version)
+dz_block(scale=1, version=1) = term_block(DZ, scale, version)
 
-xy_block(scale=1) = term_block(XY, scale)
-yz_block(scale=1) = term_block(YZ, scale)
-zx_block(scale=1) = term_block(ZX, scale)
+xy_block(scale=1, version=1) = term_block(XY, scale, version)
+yz_block(scale=1, version=1) = term_block(YZ, scale, version)
+zx_block(scale=1, version=1) = term_block(ZX, scale, version)
 
-z2_block(scale=1) = term_block(Z2, scale)
-x2_block(scale=1) = term_block(X2, scale)
+z2_block(scale=1, version=1) = term_block(Z2, scale, version)
+x2_block(scale=1, version=1) = term_block(X2, scale, version)
 
-function potential_block(ele, center, xrange)
+function potential_block(ele, center, xrange, version=1)
     xleft = first(xrange)
     xright = last(xrange)
     xsize = xright - xleft + 1
@@ -360,7 +367,7 @@ function potential_block(ele, center, xrange)
     fit = get(fit_cache, ele, center_r, fit_center=fit_center_r)
     terms = Solutions.get_compensate_terms1(fit, stride_um)
 
-    block = zeros(Int(typemax(TermIndex)))
+    block = zero_block(version)
 
     block[Int(C)] = fit[0, 0, 0]
     block[Int(DX)] = terms.dx
@@ -373,6 +380,10 @@ function potential_block(ele, center, xrange)
 
     block[Int(Z2)] = terms.z2
     block[Int(X2)] = terms.x2
+    if version >= 2
+        block[Int(X3)] = terms.x3
+        block[Int(X4)] = terms.x4
+    end
 
     return block
 end
@@ -437,13 +448,13 @@ function create_frame1(eles, xpos_um)
 
     center_yz = center_x2 / 2
     center_target_x2 = x2_block(center_x2)
-    center_target_yz = xy_block(center_yz)
+    center_target_yz = yz_block(center_yz)
     center_target = center_target_x2 .+ center_target_yz
 
     move_x2 = get_move_x2(xpos_um)
     move_yz = move_x2 / 2
     move_target_x2 = x2_block(move_x2)
-    move_target_yz = xy_block(move_yz)
+    move_target_yz = yz_block(move_yz)
     move_target = move_target_x2 .+ move_target_yz
     target = center_target, move_target
 
