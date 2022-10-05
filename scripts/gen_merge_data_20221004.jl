@@ -414,7 +414,7 @@ function get_dc_level_limit(xpos_um)
     return interpolate(r, dc_level_limit_max, 0)
 end
 
-function construct_frame(eles, target, freedom, ranges, centers)
+function construct_frame(eles, target, freedom, ranges, centers, version=1)
     neles = length(eles)
     _target = flatten_blocks(target)
     npoints = length(_target)
@@ -423,22 +423,56 @@ function construct_frame(eles, target, freedom, ranges, centers)
     for i in 1:neles
         ele = eles[i]
         electrode_potentials[:, i] = flatten_blocks(potential_block.(ele, centers,
-                                                                     ranges))
+                                                                     ranges, version))
     end
     return Frame(_target, _freedom, eles, electrode_potentials)
 end
 
-function create_frame0(eles)
+const frame_cutoff_um = move_relax_end_um
+
+function compute_start_o4_coeff0()
+    move_x2 = get_move_x2(frame_cutoff_um)
+    move_pos_um = frame_cutoff_um - center_um
+    α = move_x2 / center_x2
+
+    a = (α + 1) / move_pos_um^2 * center_x2 * 6
+    b = -(α + 2) / move_pos_um * center_x2 * 2
+    c = center_x2
+    # The functional form initially is (a/24 * x^4 + b/6 * x^3 + c/2 x^2)
+    # in EURIQA unit
+    barrier_um = (-(b / 2) + sqrt((b / 2)^2 - 4 * (a / 6) * c)) / (2 * (a / 6))
+    # We'll translate the coordinate to be centered around the barrier @ barrier_um < 0
+    a1 = a
+    b1 = @evalpoly(barrier_um, b, a)
+    c1 = @evalpoly(barrier_um, c, b, a / 2)
+    # d1 = @evalpoly(barrier_um, 0, c, b / 2, a / 6)
+    return a1, b1, c1, barrier_um
+end
+const start_o4_coeff0 = compute_start_o4_coeff0()
+const final_o4_coeff0 = (0.0, 0.0, center_x2, 0.0)
+
+function compute_o4_coeff0(xpos_um)
+    r = get_ratio(xpos_um, frame_cutoff_um, center_um)
+    a0, b0, c0, shift_um = interpolate.(r, start_o4_coeff0, final_o4_coeff0)
+    a = a0
+    b = @evalpoly(-shift_um, b0, a0)
+    c = @evalpoly(-shift_um, c0, b0, a0 / 2)
+    d = @evalpoly(-shift_um, 0, c0, b0 / 2, a0 / 6)
+    return (a, b, c, d / (V_unit_uV / l_unit_um))
+end
+
+function create_frame0(eles, xpos_um)
     center_xrange = get_xranges0()
 
-    target_x2 = x2_block(center_x2)
-    target_yz = xy_block(center_x2 / 2)
-    target = target_x2 .+ target_yz
+    target = zero_block(2)
+    target[Int(X4)], target[Int(X3)], target[Int(X2)], target[Int(DX)] =
+        compute_o4_coeff0(xpos_um)
 
     freedom = Tuple{Vector{Float64},Float64,Float64}[]
-    push!(freedom, (c_block(), -Inf, Inf))
+    push!(freedom, (c_block(1, 2), -Inf, Inf))
 
-    return construct_frame(eles, target, freedom, (center_xrange,), (center_pos_idx,))
+    return construct_frame(eles, target, freedom,
+                           (center_xrange,), (center_pos_idx,), 2)
 end
 
 function create_frame1(eles, xpos_um)
@@ -497,8 +531,8 @@ end
 function create_frame(xpos_um)
     @show xpos_um
     eles = get_electrodes(xpos_um)
-    if xpos_um == 0
-        return eles, create_frame0(eles)
+    if xpos_um >= frame_cutoff_um
+        return eles, create_frame0(eles, xpos_um)
     else
         return eles, create_frame1(eles, xpos_um)
     end
