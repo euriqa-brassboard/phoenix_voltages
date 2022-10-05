@@ -437,13 +437,13 @@ function create_frame1(eles, xpos_um)
 
     center_yz = center_x2 / 2
     center_target_x2 = x2_block(center_x2)
-    center_target_yz = xy_block(center_yz)
+    center_target_yz = yz_block(center_yz)
     center_target = center_target_x2 .+ center_target_yz
 
     move_x2 = get_move_x2(xpos_um)
     move_yz = move_x2 / 2
     move_target_x2 = x2_block(move_x2)
-    move_target_yz = xy_block(move_yz)
+    move_target_yz = yz_block(move_yz)
     move_target = move_target_x2 .+ move_target_yz
     target = center_target, move_target
 
