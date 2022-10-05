@@ -492,7 +492,7 @@ function create_frame(xpos_um)
     end
 end
 
-const prefix = joinpath(@__DIR__, "../data/merge_data_20221001")
+const prefix = joinpath(@__DIR__, "../data/merge_data_20221004")
 
 const xpos_ums = loading_um:center_um
 const builder = TrapModelBuilder()
