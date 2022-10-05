@@ -270,11 +270,11 @@ const center_fit_shrunk_mid_size = center_fit_min_size / max_fit_assym_ratio
 const center_fit_shrunk_total_size =
     center_fit_shrunk_out_size + center_fit_shrunk_mid_size
 
-const move_fit_final_out_size = center_fit_init_size
-const move_fit_final_mid_size = 0
+const move_fit_final_out_size = 23
+const move_fit_final_mid_size = -6
 const move_fit_final_total_size = move_fit_final_out_size + move_fit_final_mid_size
-const center_fit_final_out_size = center_fit_init_size
-const center_fit_final_mid_size = 0
+const center_fit_final_out_size = 23
+const center_fit_final_mid_size = -6
 const center_fit_final_total_size =
     center_fit_final_out_size + center_fit_final_mid_size
 
@@ -315,7 +315,7 @@ end
 
 const center_pos_idx = get_rf_center(center_um)
 function get_xranges0()
-    return round(Int, center_pos_idx[1] - move_fit_final_out_size):round(Int, center_pos_idx[1] + move_fit_final_out_size)
+    return round(Int, center_pos_idx[1] - move_fit_init_out_size):round(Int, center_pos_idx[1] + move_fit_init_out_size)
 end
 function get_xranges1(xpos_um, move_pos_idx)
     (move_left, move_right), (center_left, center_right) = get_xspans(xpos_um)
@@ -506,7 +506,7 @@ for xpos_um in xpos_ums
     end
 end
 empty!(multi_fit_cache)
-@time finalize_trap_model!(builder, TrapWeights(0.1, 0.1, 1, 1))
+@time finalize_trap_model!(builder, TrapWeights(0.2, 0.1, 1, 1))
 for (rd, vals) in zip(results, optimize_trap_model!(builder))
     rd["voltages"] = vals
 end
