@@ -174,6 +174,7 @@ Base.get(cache::MultiFitterCache, xsize) = get!(cache.fit_caches, xsize) do
     fitter = Fitting.PolyFitter(2, 2, order, sizes=(5, 5, xsize))
     return Potentials.FitCache(fitter, cache.potential)
 end
+Base.empty!(cache::MultiFitterCache) = empty!(cache.fit_caches)
 const multi_fit_cache = MultiFitterCache(solution)
 
 flatten_blocks(blocks::Union{NTuple{N,A} where N,Vector{A}} where A <: Array{Float64}) =
@@ -504,6 +505,7 @@ for xpos_um in xpos_ums
         push!(results, Dict("electrodes"=>eles, "xpos_um"=>xpos_um))
     end
 end
+empty!(multi_fit_cache)
 @time finalize_trap_model!(builder, TrapWeights(0.1, 0.1, 1, 1))
 for (rd, vals) in zip(results, optimize_trap_model!(builder))
     rd["voltages"] = vals
