@@ -298,7 +298,7 @@ function get_xspans(xpos_um)
         center_mid = interpolate(r, center_fit_init_mid_size,
                                  center_fit_shrunk_mid_size)
     else
-        r = get_ratio(xpos_um, fit_shrink_end_um, 0)
+        r = get_ratio(xpos_um, fit_shrink_end_um, center_um)
         move_out = interpolate(r, move_fit_shrunk_out_size, move_fit_final_out_size)
         move_mid = interpolate(r, move_fit_shrunk_mid_size, move_fit_final_mid_size)
         center_out = interpolate(r, center_fit_shrunk_out_size,
@@ -330,8 +330,9 @@ function get_xranges1(xpos_um, move_pos_idx)
     return (move_left:move_right, center_left:center_right)
 end
 
-@enum(TermIndex, C=1, DX=2, DY=3, DZ=4, XY=5, YZ=6, ZX=7, Z2=8, X2=9,
-      NTerms1=9, X3=10, X4=11, NTerms2=11)
+@enum(TermIndex, C=1, DX=2, DY=3, DZ=4, XY=5, YZ=6, ZX=7, Z2=8, X2=9, X3=10, X4=11)
+const NTerms1 = 9
+const NTerms2 = 11
 
 function zero_block(version)
     @assert version == 1 || version == 2
