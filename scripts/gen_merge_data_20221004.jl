@@ -163,7 +163,13 @@ struct MultiFitterCache
     end
 end
 
-Base.get(cache::MultiFitterCache, xsize) = get!(cache.fit_caches, xsize) do
+function Base.get(cache::MultiFitterCache, xsize)
+    if xsize in keys(cache.fit_caches)
+        return cache.fit_caches[xsize]
+    end
+    if length(cache.fit_caches) > 10
+        empty!(cache.fit_caches)
+    end
     if xsize > 50
         order = 8
     elseif xsize > 25
@@ -172,7 +178,9 @@ Base.get(cache::MultiFitterCache, xsize) = get!(cache.fit_caches, xsize) do
         order = 4
     end
     fitter = Fitting.PolyFitter(2, 2, order, sizes=(5, 5, xsize))
-    return Potentials.FitCache(fitter, cache.potential)
+    res = Potentials.FitCache(fitter, cache.potential)
+    cache.fit_caches[xsize] = res
+    return res
 end
 Base.empty!(cache::MultiFitterCache) = empty!(cache.fit_caches)
 const multi_fit_cache = MultiFitterCache(solution)
