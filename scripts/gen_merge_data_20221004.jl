@@ -237,11 +237,11 @@ function get_electrodes(xpos_um)
 end
 
 const move_x2_init = 3.0
-const move_x2_final = 2.0
+const move_x2_final = 1.0
 const center_x2 = 1.0
 
 const move_relax_start_um = -250
-const move_relax_end_um = -150
+const move_relax_end_um = -100
 function get_move_x2(xpos_um)
     r = get_ratio(xpos_um, move_relax_start_um, move_relax_end_um)
     return interpolate(r, move_x2_init, move_x2_final)
@@ -279,11 +279,11 @@ const center_fit_shrunk_mid_size = center_fit_min_size / max_fit_assym_ratio
 const center_fit_shrunk_total_size =
     center_fit_shrunk_out_size + center_fit_shrunk_mid_size
 
-const move_fit_final_out_size = 23
-const move_fit_final_mid_size = -6
+const move_fit_final_out_size = move_fit_init_size
+const move_fit_final_mid_size = -3
 const move_fit_final_total_size = move_fit_final_out_size + move_fit_final_mid_size
-const center_fit_final_out_size = 23
-const center_fit_final_mid_size = -6
+const center_fit_final_out_size = move_fit_init_size
+const center_fit_final_mid_size = -3
 const center_fit_final_total_size =
     center_fit_final_out_size + center_fit_final_mid_size
 
@@ -399,14 +399,17 @@ end
 
 const max_shape_relax_factor = 1
 const shape_relax_start_um = -2900
-const shape_relax_max_um = -100
+const shape_relax_max_um = -30
 const shape_relax_end_um = center_um
 function get_shape_relax_factor(xpos_um)
     if xpos_um <= shape_relax_max_um
         r = get_ratio(xpos_um, shape_relax_start_um, shape_relax_max_um)
         return interpolate(r, 0, max_shape_relax_factor)
+    elseif xpos_um == 0
+        return 0.0
     else
         r = get_ratio(xpos_um, shape_relax_max_um, shape_relax_end_um)
+        r = 1 - sqrt(1 - r)
         return interpolate(r, max_shape_relax_factor, 0)
     end
 end
@@ -436,51 +439,80 @@ function construct_frame(eles, target, freedom, ranges, centers, version=1)
     return Frame(_target, _freedom, eles, electrode_potentials)
 end
 
-const frame_cutoff_um = move_relax_end_um
+const frame_cutoff_um = 0
+# const frame_cutoff_um = -10
 
-function compute_start_o4_coeff0()
-    move_x2 = get_move_x2(frame_cutoff_um)
-    move_pos_um = frame_cutoff_um - center_um
-    α = move_x2 / center_x2
+# function compute_start_o4_coeff0()
+#     move_x2 = get_move_x2(frame_cutoff_um)
+#     move_pos_um = frame_cutoff_um - center_um
+#     α = move_x2 / center_x2
 
-    a = (α + 1) / move_pos_um^2 * center_x2 * 6
-    b = -(α + 2) / move_pos_um * center_x2 * 2
-    c = center_x2
-    # The functional form initially is (a/24 * x^4 + b/6 * x^3 + c/2 x^2)
-    # in EURIQA unit
-    barrier_um = (-(b / 2) + sqrt((b / 2)^2 - 4 * (a / 6) * c)) / (2 * (a / 6))
-    # We'll translate the coordinate to be centered around the barrier @ barrier_um < 0
-    a1 = a
-    b1 = @evalpoly(barrier_um, b, a)
-    c1 = @evalpoly(barrier_um, c, b, a / 2)
-    # d1 = @evalpoly(barrier_um, 0, c, b / 2, a / 6)
-    return a1, b1, c1, barrier_um
-end
-const start_o4_coeff0 = compute_start_o4_coeff0()
-const final_o4_coeff0 = (0.0, 0.0, center_x2, 0.0)
+#     a = (α + 1) / move_pos_um^2 * center_x2 * 6
+#     b = -(α + 2) / move_pos_um * center_x2 * 2
+#     c = center_x2
+#     # The functional form initially is (a/24 * x^4 + b/6 * x^3 + c/2 x^2)
+#     # in EURIQA unit
+#     barrier_um = (-(b / 2) + sqrt((b / 2)^2 - 4 * (a / 6) * c)) / (2 * (a / 6))
+#     # We'll translate the coordinate to be centered around the barrier @ barrier_um < 0
+#     a1 = a
+#     b1 = @evalpoly(barrier_um, b, a)
+#     c1 = @evalpoly(barrier_um, c, b, a / 2)
+#     # d1 = @evalpoly(barrier_um, 0, c, b / 2, a / 6)
+#     return a1, b1, c1, barrier_um
+# end
+# const start_o4_coeff0 = compute_start_o4_coeff0()
+# const final_o4_coeff0 = (0.0, 0.0, center_x2, 0.0)
 
-function compute_o4_coeff0(xpos_um)
-    r = get_ratio(xpos_um, frame_cutoff_um, center_um)
-    a0, b0, c0, shift_um = interpolate.(r, start_o4_coeff0, final_o4_coeff0)
-    a = a0
-    b = @evalpoly(-shift_um, b0, a0)
-    c = @evalpoly(-shift_um, c0, b0, a0 / 2)
-    d = @evalpoly(-shift_um, 0, c0, b0 / 2, a0 / 6)
-    return (a, b, c, d / (V_unit_uV / l_unit_um))
-end
+# function compute_o4_coeff0(xpos_um)
+#     r = get_ratio(xpos_um, frame_cutoff_um, center_um)
+#     a0, b0, c0, shift_um = interpolate.(r, start_o4_coeff0, final_o4_coeff0)
+#     a = a0
+#     b = @evalpoly(-shift_um, b0, a0)
+#     c = @evalpoly(-shift_um, c0, b0, a0 / 2)
+#     d = @evalpoly(-shift_um, 0, c0, b0 / 2, a0 / 6)
+#     @show (a, b, c, d / (V_unit_uV / l_unit_um))
+#     return (a, b, c, d / (V_unit_uV / l_unit_um))
+# end
+
+# function create_frame0(eles, xpos_um)
+#     center_xrange = get_xranges0()
+
+#     target = zero_block(2)
+#     target[Int(X4)], target[Int(X3)], target[Int(X2)], target[Int(DX)] =
+#         compute_o4_coeff0(xpos_um)
+
+#     shape_relax = get_shape_relax_factor(xpos_um)
+
+#     freedom = Tuple{Vector{Float64},Float64,Float64}[]
+#     push!(freedom, (dx_block(1, 2), -3000 * shape_relax, 3000 * shape_relax))
+#     push!(freedom, (dy_block(1, 2), -10 * shape_relax, 10 * shape_relax))
+#     push!(freedom, (dz_block(1, 2), -10 * shape_relax, 10 * shape_relax))
+#     push!(freedom, (xy_block(1, 2),
+#                     -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
+#     push!(freedom, (yz_block(1, 2),
+#                     -center_x2 * shape_relax / 8, center_x2 * shape_relax / 8))
+#     push!(freedom, (zx_block(1, 2),
+#                     -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
+#     push!(freedom, (z2_block(1, 2),
+#                     -center_x2 * shape_relax / 8, center_x2 * shape_relax / 8))
+#     push!(freedom, (x2_block(1, 2),
+#                     -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
+#     push!(freedom, (c_block(1, 2), -Inf, Inf))
+
+#     return construct_frame(eles, target, freedom,
+#                            (center_xrange,), (center_pos_idx,), 2)
+# end
 
 function create_frame0(eles, xpos_um)
+    @assert xpos_um == 0
     center_xrange = get_xranges0()
 
-    target = zero_block(2)
-    target[Int(X4)], target[Int(X3)], target[Int(X2)], target[Int(DX)] =
-        compute_o4_coeff0(xpos_um)
+    target = x2_block(center_x2)
 
     freedom = Tuple{Vector{Float64},Float64,Float64}[]
-    push!(freedom, (c_block(1, 2), -Inf, Inf))
-
+    push!(freedom, (c_block(), -Inf, Inf))
     return construct_frame(eles, target, freedom,
-                           (center_xrange,), (center_pos_idx,), 2)
+                           (center_xrange,), (center_pos_idx,))
 end
 
 function create_frame1(eles, xpos_um)
@@ -507,24 +539,33 @@ function create_frame1(eles, xpos_um)
     move_one = c_block(1)
 
     freedom = Tuple{NTuple{2,Vector{Float64}},Float64,Float64}[]
-    push!(freedom, ((xy_block(), move_zero), -Inf, Inf))
+    push!(freedom, ((dx_block(), move_zero), -3000 * shape_relax, 3000 * shape_relax))
+    push!(freedom, ((dy_block(), move_zero), -10 * shape_relax, 10 * shape_relax))
+    push!(freedom, ((dz_block(), move_zero), -10 * shape_relax, 10 * shape_relax))
+    push!(freedom, ((xy_block(), move_zero),
+                    -center_yz * shape_relax / 2, center_yz * shape_relax / 2))
     push!(freedom, ((yz_block(), move_zero),
                     -center_yz * shape_relax / 3, center_yz * shape_relax / 3))
+    push!(freedom, ((zx_block(), move_zero),
+                    -center_yz * shape_relax / 2, center_yz * shape_relax / 2))
     push!(freedom, ((z2_block(), move_zero),
                     -center_yz * shape_relax / 3, center_yz * shape_relax / 3))
     push!(freedom, ((x2_block(), move_zero),
                     -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
-    push!(freedom, ((zx_block(), move_zero),
-                    -center_x2 * shape_relax / 5, center_x2 * shape_relax / 5))
 
-    push!(freedom, ((center_zero, xy_block()), -Inf, Inf))
+    push!(freedom, ((center_zero, dx_block()), -3000 * shape_relax, 3000 * shape_relax))
+    push!(freedom, ((center_zero, dy_block()), -20 * shape_relax, 20 * shape_relax))
+    push!(freedom, ((center_zero, dz_block()), -20 * shape_relax, 20 * shape_relax))
+    push!(freedom, ((center_zero, xy_block()),
+                    -move_yz * shape_relax / 3, move_yz * shape_relax / 3))
     push!(freedom, ((center_zero, yz_block()),
+                    -move_yz * shape_relax / 3, move_yz * shape_relax / 3))
+    push!(freedom, ((center_zero, zx_block()),
                     -move_yz * shape_relax / 3, move_yz * shape_relax / 3))
     push!(freedom, ((center_zero, z2_block()),
                     -move_yz * shape_relax / 3, move_yz * shape_relax / 3))
     push!(freedom, ((center_zero, x2_block()),
-                    -move_x2 * shape_relax / 4, move_x2 * shape_relax / 4))
-    push!(freedom, ((center_zero, zx_block()), -Inf, Inf))
+                    -move_x2 * shape_relax / 8, move_x2 * shape_relax / 8))
 
     push!(freedom, ((center_one, move_one), -Inf, Inf))
 
