@@ -92,7 +92,7 @@ function local_opt(v, free_terms, B)
     @objective(model, Min, maxv)
     JuMP.optimize!(model)
 
-    return value.(cs), value.(t)
+    return value(maxv), value.(cs), value.(t)
 end
 
 function add_frame!(builder::TrapModelBuilder, frame::Frame)
@@ -128,20 +128,21 @@ function add_frame!(builder::TrapModelBuilder, frame::Frame)
     B = qr(coeff').Q[:, (size(coeff, 1) + 1):end]
     nv, nt = size(B)
     @assert length(v) == nv
-    cs_init, t_init = local_opt(v, free_terms, B)
+    maxv_init, cs_init, t_init = local_opt(v, free_terms, B)
     for ((vf, c, _), ci) in zip(free_terms, cs_init)
         set_start_value(c, ci)
         v = @expression(model, v .+ vf .* c)
     end
     t = @variable(model, [i=1:nt], start=t_init[i])
+    maxv = @variable(model, start=maxv_init)
     # for (vf, c, _) in free_terms
     #     v = @expression(model, v .+ vf .* c)
     # end
     # t = @variable(model, [1:nt])
+    # maxv = @variable(model)
+
     v = @expression(model, B * t .+ v)
     push!(tm.vs, v)
-
-    maxv = @variable(model)
     @constraint(model, maxv .>= v)
     @constraint(model, maxv .>= .-v)
     push!(tm.maxvs, maxv)
