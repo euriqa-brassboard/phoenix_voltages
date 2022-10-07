@@ -66,6 +66,35 @@ mutable struct TrapModelBuilder
     TrapModelBuilder() = new(TrapModel(), 0)
 end
 
+function local_opt(v, free_terms, B)
+    model = Model(Ipopt.Optimizer)
+    set_optimizer_attribute(model, "print_level", 0)
+    cs = VariableRef[]
+    for (vf, _, bounds) in free_terms
+        lb, ub = bounds
+        c = @variable(model)
+        if isfinite(lb)
+            @constraint(model, c >= lb)
+        end
+        if isfinite(ub)
+            @constraint(model, c <= ub)
+        end
+        v = @expression(model, v .+ vf .* c)
+        push!(cs, c)
+    end
+    nv, nt = size(B)
+    @assert length(v) == nv
+    t = @variable(model, [1:nt])
+    v = @expression(model, B * t .+ v)
+    maxv = @variable(model)
+    @constraint(model, maxv .>= v)
+    @constraint(model, maxv .>= .-v)
+    @objective(model, Min, maxv)
+    JuMP.optimize!(model)
+
+    return value.(cs), value.(t)
+end
+
 function add_frame!(builder::TrapModelBuilder, frame::Frame)
     tm = builder.model
     model = tm.model
@@ -73,7 +102,7 @@ function add_frame!(builder::TrapModelBuilder, frame::Frame)
     @assert size(frame.electrode_potentials, 2) == neles
 
     target = frame.target
-    free_terms = Tuple{Vector{Float64},VariableRef}[]
+    free_terms = Tuple{Vector{Float64},VariableRef,NTuple{2,Float64}}[]
     for flex in frame.freedom
         lb, ub = flex[2]
         if lb > ub
@@ -92,17 +121,23 @@ function add_frame!(builder::TrapModelBuilder, frame::Frame)
         if isfinite(ub)
             @constraint(model, c <= ub)
         end
-        push!(free_terms, (frame.electrode_potentials \ flex[1], c))
+        push!(free_terms, (frame.electrode_potentials \ flex[1], c, flex[2]))
     end
     v = frame.electrode_potentials \ target
-    for (vf, c) in free_terms
-        v = @expression(model, v .+ vf .* c)
-    end
     coeff = frame.electrode_potentials
     B = qr(coeff').Q[:, (size(coeff, 1) + 1):end]
     nv, nt = size(B)
     @assert length(v) == nv
-    t = @variable(model, [1:nt])
+    cs_init, t_init = local_opt(v, free_terms, B)
+    for ((vf, c, _), ci) in zip(free_terms, cs_init)
+        set_start_value(c, ci)
+        v = @expression(model, v .+ vf .* c)
+    end
+    t = @variable(model, [i=1:nt], start=t_init[i])
+    # for (vf, c, _) in free_terms
+    #     v = @expression(model, v .+ vf .* c)
+    # end
+    # t = @variable(model, [1:nt])
     v = @expression(model, B * t .+ v)
     push!(tm.vs, v)
 
@@ -151,7 +186,7 @@ function finalize_trap_model!(builder::TrapModelBuilder, weights::TrapWeights)
 end
 
 function optimize_trap_model!(builder::TrapModelBuilder)
-    JuMP.optimize!(builder.model.model)
+    @time JuMP.optimize!(builder.model.model)
     return [[value(v) for v in v] for v in builder.model.vs]
 end
 
