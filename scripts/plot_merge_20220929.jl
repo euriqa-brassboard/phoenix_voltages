@@ -29,14 +29,14 @@ function load_solution(name)
 end
 
 const solution_1 = load_solution("merge_20220929.mat")
-const solution_2 = load_solution("merge_data_20221001.mat")
+const solution_2 = load_solution("merge_20221007_local.mat")
 const solution_3 = load_solution("merge_data_20221004.mat")
 
 const prefix = joinpath(@__DIR__, "../imgs/merge_20221001")
 
 figure()
 plot(solution_1.xpos_um, solution_1.maxv, label="0929")
-plot(solution_2.xpos_um, solution_2.maxv, label="1001")
+plot(solution_2.xpos_um, solution_2.maxv, label="1007")
 plot(solution_3.xpos_um, solution_3.maxv, label="1004")
 ylim([0.5, 9])
 legend(fontsize=10, ncol=3)
@@ -47,7 +47,7 @@ NaCsPlot.maybe_save("$(prefix)_max")
 
 figure()
 plot(solution_1.xpos_um[1:end - 1], solution_1.maxdiff, label="0929")
-plot(solution_2.xpos_um[1:end - 1], solution_2.maxdiff, label="1001")
+plot(solution_2.xpos_um[1:end - 1], solution_2.maxdiff, label="1007")
 plot(solution_3.xpos_um[1:end - 1], solution_3.maxdiff, label="1004")
 ylim([0, 2.5])
 legend(fontsize=10, ncol=3)
