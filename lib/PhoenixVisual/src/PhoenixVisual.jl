@@ -194,9 +194,8 @@ function render_frame(fits_cache::Potentials.FitCache, centers, electrodes, volt
     if plotx_ums !== nothing
         function get_voltage(x_um)
             local pos = _get_center(fits_cache, centers, x_um)
-            fit = Potentials.get_multi_electrodes(fits_cache, electrode_voltages,
-                                                  (pos[3], pos[2], pos[1]))
-            return fit[0, 0, 0]
+            return Potentials.get_multi_electrodes(fits_cache, electrode_voltages,
+                                                   (pos[3], pos[2], pos[1]), (0, 0, 0))
         end
         ax_potential = get_voltage.(plotx_ums)
 

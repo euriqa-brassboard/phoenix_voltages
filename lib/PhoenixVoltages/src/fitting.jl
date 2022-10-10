@@ -2,7 +2,7 @@
 
 module Fitting
 
-import ..gradient
+import ..gradient, ..get_single
 
 # N dimensional multipole fitting
 struct PolyFitter{N}
@@ -195,6 +195,14 @@ function Base.get(cache::PolyFitCache{N}, pos::NTuple{N};
     idxs = _best_fit_idx.(size(cache.data), kernel_sizes, fit_center)
     fit = get_internal(cache, idxs)
     return shift(fit, pos .- (kernel_sizes .- 1) ./ 2 .- idxs)
+end
+
+function get_single(cache::PolyFitCache{N}, pos::NTuple{N}, orders::NTuple{N};
+                    fit_center=pos) where N
+    kernel_sizes = cache.fitter.sizes
+    idxs = _best_fit_idx.(size(cache.data), kernel_sizes, fit_center)
+    fit = get_internal(cache, idxs)
+    return shifted_coefficient(fit, pos .- (kernel_sizes .- 1) ./ 2 .- idxs, orders...)
 end
 
 function gradient(cache::PolyFitCache{N}, dim, pos::Vararg{Any,N}) where N

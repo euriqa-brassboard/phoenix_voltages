@@ -3,6 +3,7 @@
 module PhoenixVoltages
 
 function gradient end
+function get_single end
 
 include("mappings.jl")
 include("outputs.jl")

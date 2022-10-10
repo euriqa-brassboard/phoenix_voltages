@@ -2,7 +2,7 @@
 
 module Potentials
 
-import ..Fitting
+import ..Fitting, ..get_single
 
 struct RawPotential
     electrodes::Int
@@ -303,7 +303,11 @@ Base.get(cache::FitCache, name::AbstractString) =
 
 Base.get(cache::FitCache, electrode::Union{AbstractString,Integer}, pos::NTuple{3};
          fit_center=pos) =
-    get(get(cache, electrode), pos; fit_center=fit_center)
+             get(get(cache, electrode), pos; fit_center=fit_center)
+
+get_single(cache::FitCache, electrode::Union{AbstractString,Integer}, pos::NTuple{3},
+           orders::NTuple{3}; fit_center=pos) =
+               get_single(get(cache, electrode), pos, orders; fit_center=fit_center)
 
 function get_multi_electrodes(cache::FitCache, electrodes_voltages, pos::NTuple{3})
     local res
@@ -318,6 +322,15 @@ function get_multi_electrodes(cache::FitCache, electrodes_voltages, pos::NTuple{
     if !@isdefined(res)
         return Fitting.PolyFitResult{3}(cache.fitter.orders,
                                         zeros(prod(cache.fitter.orders .+ 1)))
+    end
+    return res
+end
+
+function get_multi_electrodes(cache::FitCache, electrodes_voltages, pos::NTuple{3},
+                              orders::NTuple{3})
+    res = 0.0
+    for (ele, v) in electrodes_voltages
+        res += get_single(cache, ele, pos, orders) * v
     end
     return res
 end
