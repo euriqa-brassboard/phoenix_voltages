@@ -69,8 +69,8 @@ mutable struct ModelBuilder
     maxvdiffs::Vector{VariableRef}
 
     # Block cost functions
-    maxmaxvs::Vector{AffExpr}
-    maxmaxvdiffs::Vector{AffExpr}
+    maxmaxvs::Vector{VariableRef}
+    maxmaxvdiffs::Vector{VariableRef}
 
     prev_vmap::Dict{Int,AffExpr}
     function ModelBuilder()
@@ -156,8 +156,8 @@ function add_block!(builder::ModelBuilder, from, to)
     set_start_value(maxmaxv, maxmaxv_init)
     set_start_value(maxmaxvdiff, maxmaxvdiff_init)
 
-    push!(builder.maxmaxvs, maxmaxv * (to - from + 1))
-    push!(builder.maxmaxvdiffs, maxmaxvdiff * (to - from + 1))
+    push!(builder.maxmaxvs, maxmaxv)
+    push!(builder.maxmaxvdiffs, maxmaxvdiff)
 
     return builder
 end
@@ -168,7 +168,7 @@ function add_all_blocks!(builder::ModelBuilder, block_sz)
     end
 end
 
-function finalize_model!(builder::ModelBuilder, weights::TrapWeights)
+function finalize_model!(builder::ModelBuilder, block_sz, weights::TrapWeights)
     model = builder.model
 
     obj = sum(builder.maxvs) * weights.maxvs
@@ -176,10 +176,10 @@ function finalize_model!(builder::ModelBuilder, weights::TrapWeights)
         obj += sum(builder.maxvdiffs) * weights.maxvdiffs
     end
     if weights.maxmaxv > 0
-        obj += sum(builder.maxmaxvs) * weights.maxmaxv
+        obj += sum(builder.maxmaxvs) * (weights.maxmaxv * block_sz)
     end
     if weights.maxmaxvdiff > 0
-        obj += sum(builder.maxmaxvdiffs) * weights.maxmaxvdiff
+        obj += sum(builder.maxmaxvdiffs) * (weights.maxmaxvdiff * block_sz)
     end
     @objective(model, Min, obj)
     return builder
@@ -203,7 +203,7 @@ end
 function run()
     builder = ModelBuilder()
     add_all_blocks!(builder, block_size)
-    finalize_model!(builder, TrapWeights(0.2, 0.1, 0.01, 2))
+    finalize_model!(builder, block_size, TrapWeights(0.2, 0.1, 0.1, 1.5))
     cs, ts, vs = optimize_model!(builder)
     transfer_solutions = [pack_data(data, c, t, v) for (data, c, t, v)
                               in zip(coeff_data, cs, ts, vs)]
