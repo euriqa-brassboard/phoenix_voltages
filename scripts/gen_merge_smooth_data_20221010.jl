@@ -203,7 +203,7 @@ end
 function run()
     builder = ModelBuilder()
     add_all_blocks!(builder, block_size)
-    finalize_model!(builder, TrapWeights(0.2, 0.1, 1, 1))
+    finalize_model!(builder, TrapWeights(0.2, 0.1, 0.01, 2))
     cs, ts, vs = optimize_model!(builder)
     transfer_solutions = [pack_data(data, c, t, v) for (data, c, t, v)
                               in zip(coeff_data, cs, ts, vs)]
