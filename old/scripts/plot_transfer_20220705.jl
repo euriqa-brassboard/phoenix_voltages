@@ -42,7 +42,7 @@ ylim([8, 17])
 legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
-xlabel("Max (V)")
+ylabel("Max (V)")
 NaCsPlot.maybe_save("$(prefix)_max")
 
 figure()
