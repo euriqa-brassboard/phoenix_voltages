@@ -9,6 +9,7 @@ struct PolyFitter{N}
     orders::NTuple{N,Int}
     sizes::NTuple{N,Int}
     coefficient::Matrix{Float64}
+    scales::Vector{Float64}
     # center is the origin of the polynomial in index (1-based)
     function PolyFitter(orders::Vararg{Integer,N};
                         sizes=orders .+ 1, center=(sizes .+ 1) ./ 2) where N
@@ -21,17 +22,23 @@ struct PolyFitter{N}
         pos_cidxs = CartesianIndices(sizes)
         ord_lidxs = LinearIndices(orders .+ 1)
         ord_cidxs = CartesianIndices(orders .+ 1)
+        scales = Vector{Float64}(undef, nterms)
+        scale_max = max.((sizes .- 1) ./ 2, 1.0)
+        for iorder in ord_lidxs
+            order = Tuple(ord_cidxs[iorder]) .- 1
+            scales[iorder] = 1 / prod(scale_max.^order)
+        end
         # Index for position
         for ipos in pos_lidxs
             # Position of the point, with the origin in the middle of the grid.
-            pos = Tuple(pos_cidxs[ipos]) .- center
+            pos = Tuple(pos_cidxs[ipos]) .- Float64.(center)
             # Index for the polynomial order
             for iorder in ord_lidxs
                 order = Tuple(ord_cidxs[iorder]) .- 1
-                coefficient[ipos, iorder] = prod(pos.^order)
+                coefficient[ipos, iorder] = prod(pos.^order) * scales[iorder]
             end
         end
-        return new{N}(orders, sizes, coefficient)
+        return new{N}(orders, sizes, coefficient, scales)
     end
 end
 
@@ -106,7 +113,8 @@ function order_index(res::PolyFitResult{N}, order::Vararg{Integer,N}) where N
 end
 
 function Base.:\(fitter::PolyFitter{N}, data::AbstractArray{T,N} where T) where N
-    return PolyFitResult{N}(fitter.orders, fitter.coefficient \ vec(data))
+    return PolyFitResult{N}(fitter.orders,
+                            (fitter.coefficient \ vec(data)) .* fitter.scales)
 end
 
 function Base.getindex(res::PolyFitResult{N}, order::Vararg{Integer,N}) where N
