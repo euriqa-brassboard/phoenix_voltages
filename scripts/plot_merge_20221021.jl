@@ -49,7 +49,7 @@ function load_solution(name)
 end
 
 const solutions = [("local", load_solution("merge_20221021_local.mat")),
-                   # ("blk 70", load_solution("merge_20221021_blk70.mat"))
+                   ("blk 70", load_solution("merge_20221021_blk70.mat")),
                    ]
 
 const prefix = joinpath(@__DIR__, "../imgs/merge_20221021")
