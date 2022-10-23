@@ -188,16 +188,19 @@ function set_xrange!(site::TrapSite, left, right)
     else
         site.xorder = 4
     end
+    if !site.is_chain
+        site.xorder = 4
+    end
     return
 end
 
 function set_xranges!(sites)
     single_out_size = 25
     chain_out_size = 51
-    chain_max_size = 91
-    inner_min_size = -3
+    chain_max_size = 75
+    inner_min_size = -4
 
-    min_gap_ratio = 1.9
+    min_gap_ratio = 2.5
     min_gap_um = (single_out_size + chain_out_size) * min_gap_ratio * xstride_um
 
     dist = sites_gap(sites)
@@ -248,13 +251,16 @@ function set_shape_relax!(sites)
     end
     for site in sites
         site.shape_relax = factor
+        if !site.is_chain && dist > 600
+            site.shape_relax = max(factor, 0.2)
+        end
     end
 end
 
 function set_level_limit!(sites)
     level_limit_max = 0.08
     level_limit_start_um = 500
-    level_limit_end_um = 240
+    level_limit_end_um = 200
 
     dist = sites_gap(sites)
     if dist < 0
@@ -477,6 +483,18 @@ function create_frame(sites)
             push!(freedom, (single_site_line(i, xn_block(order, 1, site.xorder)),
                             0, Inf))
         end
+        for order in 5:2:site.xorder
+            # Assume single site is on the left
+            push!(freedom, (single_site_line(i, xn_block(order, 1, site.xorder)),
+                            0, Inf))
+        end
+        push!(freedom, (single_site_line(i, xn_block(4, 1, site.xorder)),
+                        dist > 350 && !site.is_chain ? -Inf : 0, Inf))
+        zx_relaxed = false
+        if site.xpos_um < -800 && !site.is_chain
+            push!(freedom, (single_site_line(i, zx_block(1, site.xorder)), -Inf, Inf))
+            zx_relaxed = true
+        end
         if shape_relax == 0
             continue
         end
@@ -486,29 +504,31 @@ function create_frame(sites)
         if site.is_chain
             push!(freedom, (single_site_line(i, dx_block(1, site.xorder)),
                             -1250 * shape_relax, 1250 * shape_relax))
+            push!(freedom, (single_site_line(i, yz_block(1, site.xorder)),
+                            -yz * shape_relax / 4, yz * shape_relax / 4))
             push!(freedom, (single_site_line(i, zx_block(1, site.xorder)),
                             -yz * shape_relax / 4, yz * shape_relax / 4))
             push!(freedom, (single_site_line(i, z2_block(1, site.xorder)),
                             -yz * shape_relax / 4, yz * shape_relax / 4))
             push!(freedom, (single_site_line(i, x2_block(1, site.xorder)),
-                            -x2 * shape_relax / 5, x2 * shape_relax / 5))
+                            -x2 * shape_relax / 4, x2 * shape_relax / 4))
             push!(freedom, (single_site_line(i, xn_block(3, 1, site.xorder)),
                             -x2 * shape_relax * 0.2, x2 * shape_relax * 1))
-            push!(freedom, (single_site_line(i, xn_block(4, 1, site.xorder)),
-                            0, Inf))
         else
             push!(freedom, (single_site_line(i, dx_block(1, site.xorder)),
-                            -1250 * shape_relax, 1250 * shape_relax))
-            push!(freedom, (single_site_line(i, zx_block(1, site.xorder)),
+                            -1500 * shape_relax, 1500 * shape_relax))
+            push!(freedom, (single_site_line(i, yz_block(1, site.xorder)),
                             -yz * shape_relax / 3, yz * shape_relax / 3))
+            if !zx_relaxed
+                push!(freedom, (single_site_line(i, zx_block(1, site.xorder)),
+                                -yz * shape_relax / 2, yz * shape_relax / 2))
+            end
             push!(freedom, (single_site_line(i, z2_block(1, site.xorder)),
-                            -yz * shape_relax / 3, yz * shape_relax / 3))
+                            -yz * shape_relax / 2, yz * shape_relax / 2))
             push!(freedom, (single_site_line(i, x2_block(1, site.xorder)),
-                            -x2 * shape_relax / 8, x2 * shape_relax / 8))
+                            -x2 * shape_relax / 3, x2 * shape_relax / 3))
             push!(freedom, (single_site_line(i, xn_block(3, 1, site.xorder)),
                             -x2 * shape_relax * 1, x2 * shape_relax * 0.3))
-            push!(freedom, (single_site_line(i, xn_block(4, 1, site.xorder)),
-                            dist > 350 ? -Inf : 0, Inf))
         end
     end
     push!(freedom, (one_blocks, -Inf, Inf))
@@ -592,6 +612,11 @@ function moveback_frames()
         @time begin
             sites = sites_moveback(i)
             populate_sites!(sites)
+            if i != moveback_steps
+                for site in sites
+                    site.shape_relax = 0.1
+                end
+            end
             frame = create_frame(sites)
             push!(res, dump_frame(sites, frame))
         end
