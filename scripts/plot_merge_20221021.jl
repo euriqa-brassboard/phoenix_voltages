@@ -60,7 +60,7 @@ for si in 1:nsection
     for (label, solution) in solutions
         plot(solution[si].xpos_um, solution[si].maxv, label=label)
     end
-    # ylim([0.5, 30])
+    ylim([0.5, 30])
     legend(fontsize=10, ncol=3)
     grid()
     xlabel("Position (μm)")
@@ -74,7 +74,7 @@ for si in 1:nsection
     for (label, solution) in solutions
         plot(solution[si].xpos_um[1:end - 1], solution[si].maxdiff, label=label)
     end
-    # ylim([0, 2.5])
+    ylim([0, 2.5])
     legend(fontsize=10, ncol=3)
     grid()
     xlabel("Position (μm)")
