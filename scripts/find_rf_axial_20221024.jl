@@ -45,8 +45,16 @@ end
 figure()
 plot(xs_um, trap_axial)
 xlabel("X (\$\\mu m\$)")
-ylabel("Axial RF field \$m^{-1}\$")
+ylabel("Axial RF field (\$m^{-1}\$)")
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)")
+
+figure()
+plot(xs_um, trap_axial)
+xlabel("X (\$\\mu m\$)")
+ylabel("Axial RF field (\$m^{-1}\$)")
+ylim([-7, 7])
+grid()
+NaCsPlot.maybe_save("$(imgs_prefix)_zoomin")
 
 NaCsPlot.maybe_show()
