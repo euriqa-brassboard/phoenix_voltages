@@ -160,15 +160,29 @@ for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
     end
 end
 
-const raw_electrode_names = ["GND"; "RF";
+const _raw_electrode_names = ["GND"; "RF";
                              "L" .* string.(0:9);
                              "O" .* string.(0:1);
                              "Q" .* string.(0:65);
                              "S" .* string.(0:11);]
-const raw_electrode_index = Dict{String,Int}()
-for i in 1:length(raw_electrode_names)
-    raw_electrode_index[raw_electrode_names[i]] = i
+const _raw_electrode_index = Dict{String,Int}()
+for i in 1:length(_raw_electrode_names)
+    _raw_electrode_index[_raw_electrode_names[i]] = i
 end
+
+const _raw_electrode_names_hoa = ["GND"; "RF";
+                                 "G" .* string.(1:8);
+                                 "L" .* string.(1:16);
+                                 "Q" .* string.(1:40);
+                                 "T" .* string.(1:6);
+                                 "Y" .* string.(1:24);]
+const _raw_electrode_index_hoa = Dict{String,Int}()
+for i in 1:length(_raw_electrode_names_hoa)
+    _raw_electrode_index_hoa[_raw_electrode_names_hoa[i]] = i
+end
+
+raw_electrode_names(is_hoa) = is_hoa ? _raw_electrode_names_hoa : _raw_electrode_names
+raw_electrode_index(is_hoa) = is_hoa ? _raw_electrode_index_hoa : _raw_electrode_index
 
 export Potential
 
@@ -185,8 +199,8 @@ struct Potential
 end
 
 function Potential(raw::RawPotential,
-                   electrode_names::AbstractVector)
-    @assert raw.electrodes == length(raw_electrode_names)
+                   electrode_names::AbstractVector; is_hoa=false)
+    @assert raw.electrodes == length(raw_electrode_names(is_hoa))
     new_electrodes = length(electrode_names)
     data = Array{Float64}(undef, raw.nz, raw.ny, raw.nx, new_electrodes)
     electrode_index = Dict{String,Int}()
@@ -195,7 +209,7 @@ function Potential(raw::RawPotential,
         first = true
         for elec in electrodes
             electrode_index[elec] = i
-            raw_idx = raw_electrode_index[elec]
+            raw_idx = raw_electrode_index(is_hoa)[elec]
             if first
                 data[:, :, :, i] .= @view raw.data[:, :, :, raw_idx]
                 first = false
@@ -219,9 +233,9 @@ for (name, i) in ((:x, 1), (:y, 2), (:z, 3))
     end
 end
 
-function _aliases_to_names(aliases::AbstractDict{Int,Int})
+function _aliases_to_names(aliases::AbstractDict{Int,Int}; is_hoa=false)
     # Compute the mapping between id's
-    raw_electrodes = length(raw_electrode_names)
+    raw_electrodes = length(raw_electrode_names(is_hoa))
     id_map = zeros(Int, raw_electrodes)
     id = 0
     new_electrodes = raw_electrodes - length(aliases)
@@ -232,7 +246,7 @@ function _aliases_to_names(aliases::AbstractDict{Int,Int})
         end
         id += 1
         id_map[i] = id
-        electrode_names[id] = [raw_electrode_names[i]]
+        electrode_names[id] = [raw_electrode_names(is_hoa)[i]]
     end
     @assert new_electrodes == id
     for (k, v) in aliases
@@ -240,41 +254,48 @@ function _aliases_to_names(aliases::AbstractDict{Int,Int})
         @assert !(v in keys(aliases))
         id = id_map[v]
         @assert id != 0
-        name = raw_electrode_names[k]
+        name = raw_electrode_names(is_hoa)[k]
         push!(electrode_names[id], name)
     end
     return electrode_names
 end
 
-function _aliases_to_names(aliases::AbstractDict{S1,S2} where {S1<:AbstractString,S2<:AbstractString})
-    return _aliases_to_names(Dict(raw_electrode_index[k]=>raw_electrode_index[v]
-                                  for (k, v) in aliases))
+function _aliases_to_names(aliases::AbstractDict{S1,S2} where {S1<:AbstractString,S2<:AbstractString}; is_hoa=false)
+    return _aliases_to_names(Dict(
+        raw_electrode_index(is_hoa)[k]=>raw_electrode_index(is_hoa)[v]
+        for (k, v) in aliases), is_hoa=is_hoa)
 end
 
-function _get_electrode_names(aliases, electrode_names)
+function _get_electrode_names(aliases, electrode_names; is_hoa=false)
     if electrode_names !== nothing
         @assert aliases === nothing
         return electrode_names
     end
     if aliases === nothing
-        return [[name] for name in raw_electrode_names]
+        return [[name] for name in raw_electrode_names(is_hoa)]
     end
-    return _aliases_to_names(aliases)
+    return _aliases_to_names(aliases, is_hoa=is_hoa)
 end
 
-function import_pillbox_v0(filename; aliases=nothing, electrode_names=nothing)
+function import_pillbox_v0(filename; aliases=nothing, electrode_names=nothing,
+                           is_hoa=false)
     return Potential(import_pillbox_v0_raw(filename),
-                     _get_electrode_names(aliases, electrode_names))
+                     _get_electrode_names(aliases, electrode_names, is_hoa=is_hoa),
+                     is_hoa=is_hoa)
 end
 
-function import_pillbox_v1(filename; aliases=nothing, electrode_names=nothing)
+function import_pillbox_v1(filename; aliases=nothing, electrode_names=nothing,
+                           is_hoa=false)
     return Potential(import_pillbox_v1_raw(filename),
-                     _get_electrode_names(aliases, electrode_names))
+                     _get_electrode_names(aliases, electrode_names, is_hoa=is_hoa),
+                     is_hoa=is_hoa)
 end
 
-function import_pillbox_64(filename; aliases=nothing, electrode_names=nothing)
+function import_pillbox_64(filename; aliases=nothing, electrode_names=nothing,
+                           is_hoa=false)
     return Potential(import_pillbox_64_raw(filename),
-                     _get_electrode_names(aliases, electrode_names))
+                     _get_electrode_names(aliases, electrode_names, is_hoa=is_hoa),
+                     is_hoa=is_hoa)
 end
 
 const _subarray_T = typeof(@view zeros(0, 0, 0, 1)[:, :, :, 1])
