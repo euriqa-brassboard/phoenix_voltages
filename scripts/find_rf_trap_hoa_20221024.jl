@@ -10,15 +10,15 @@ using PhoenixVoltages.Solutions
 using NaCsPlot
 using PyPlot
 
-const data_prefix = joinpath(@__DIR__, "../data/rf_trap")
-const imgs_prefix = joinpath(@__DIR__, "../imgs/rf_trap")
+const data_prefix = joinpath(@__DIR__, "../data/rf_trap_hoa")
+const imgs_prefix = joinpath(@__DIR__, "../imgs/rf_trap_hoa")
 
-const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
+const centers = matopen(joinpath(@__DIR__, "../data/rf_center_hoa.mat")) do mat
     return Solutions.CenterTracker(read(mat, "zy_index"))
 end
 
 const solution_file = ARGS[1]
-const solution = Potentials.import_pillbox_64(solution_file)
+const solution = Potentials.import_pillbox_64(solution_file, is_hoa=true)
 # RF is electrode 2 (ground is 1)
 const rf_data = solution.data[:, :, :, 2]
 
@@ -92,6 +92,7 @@ legend()
 xlabel("X (\$\\mu m\$)")
 ylabel("\$mm^{-2}\$")
 title("RF Field Curvature")
+ylim([-25, 25])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_field")
 
@@ -103,6 +104,7 @@ xlabel("X (\$\\mu m\$)")
 ylabel("\$mm^{-2}\$")
 title("RF Field Curvature")
 grid()
+ylim([22.5, 24.5])
 NaCsPlot.maybe_save("$(imgs_prefix)_field_zhj")
 
 figure()
@@ -111,6 +113,7 @@ legend()
 xlabel("X (\$\\mu m\$)")
 ylabel("\$mm^{-2}\$")
 title("RF Field Axial Curvature")
+ylim([-0.2, 0.2])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_field_axial")
 
@@ -122,6 +125,7 @@ legend()
 xlabel("X (\$\\mu m\$)")
 ylabel("\$kHz^2/V^2\$")
 title("Ion Trap Potential Curvature")
+ylim([-3, 120])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_potential")
 
@@ -132,6 +136,7 @@ legend()
 xlabel("X (\$\\mu m\$)")
 ylabel("\$kHz/V\$")
 title("Secular Frequency")
+ylim([9.8, 10.7])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_frequency")
 

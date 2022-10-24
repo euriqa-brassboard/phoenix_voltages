@@ -22,7 +22,7 @@ const solution = Potentials.import_pillbox_64(solution_file)
 # RF is electrode 2 (ground is 1)
 const rf_data = solution.data[:, :, :, 2]
 
-const zy_fitter = Fitting.PolyFitter(3, 3, sizes=(5, 5))
+const zy_fitter = Fitting.PolyFitter(4, 4, sizes=(5, 5))
 
 const rf_y2s = Vector{Float64}(undef, solution.nx)
 const rf_yzs = Vector{Float64}(undef, solution.nx)
