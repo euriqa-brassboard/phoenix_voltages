@@ -22,7 +22,7 @@ const solution = Potentials.import_pillbox_64(solution_file, is_hoa=true)
 # RF is electrode 2 (ground is 1)
 const rf_data = solution.data[:, :, :, 2]
 
-const fitter = Fitting.PolyFitter(3, 3, 3, sizes=(5, 5, 5))
+const fitter = Fitting.PolyFitter(4, 4, 4, sizes=(5, 5, 15))
 const fit_cache = Fitting.PolyFitCache(fitter, rf_data)
 
 const trap_axial = Vector{Float64}(undef, solution.nx)
@@ -77,7 +77,7 @@ figure()
 plot(xs_um, trap_x2 .+ trap_y2 .+ trap_z2)
 xlabel("X (\$\\mu m\$)")
 ylabel("Violation (\$mm^{-2}\$)")
-ylim([-1, 1])
+ylim([-0.01, 0.01])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_0")
 
