@@ -28,6 +28,9 @@ matopen("$(data_prefix).mat", "w") do mat
     write(mat, "zy_um", centers_um)
 end
 
+const ystride_um = solution.stride[2] * 1000
+const zstride_um = solution.stride[1] * 1000
+
 const residual_grad = similar(centers)
 # This is mainly a test for the shift function...
 for i in 1:solution.nx
@@ -35,8 +38,8 @@ for i in 1:solution.nx
     fitter = Fitting.PolyFitter(3, 3)
     cache = Fitting.PolyFitCache(fitter, data)
     fit = get(cache, (centers[i, 1], centers[i, 2]))
-    residual_grad[i, 1] = fit[1, 0]
-    residual_grad[i, 2] = fit[0, 1]
+    residual_grad[i, 1] = fit[1, 0] / zstride_um
+    residual_grad[i, 2] = fit[0, 1] / ystride_um
     # residual_grad[i, 1] = PhoenixVoltages.gradient(cache, 1, centers[i, 1], centers[i, 2])
     # residual_grad[i, 2] = PhoenixVoltages.gradient(cache, 2, centers[i, 1], centers[i, 2])
 end
