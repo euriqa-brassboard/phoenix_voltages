@@ -75,6 +75,14 @@ function finalize_model!(builder::ModelBuilder)
     return
 end
 
+function update_init_pos!(model::IonChainModel)
+    # Setting start value clears the value
+    values = [value(ion) for (ion, charge) in model.ions]
+    for ((ion, charge), v) in zip(model.ions, values)
+        set_start_value(ion, v)
+    end
+end
+
 function interpolate_ref_functions(fi::Ref)
     return (x->fi[](x), x->only(Interpolations.gradient(fi[], x)),
             x->only(Interpolations.hessian(fi[], x)))
