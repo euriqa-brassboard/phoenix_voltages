@@ -24,6 +24,8 @@ const fitter = Fitting.PolyFitter(4, 4, 4, sizes=(5, 5, 15))
 const fit_cache = Fitting.PolyFitCache(fitter, rf_data)
 
 const trap_offset = Vector{Float64}(undef, solution.nx)
+const trap_offset_min = Vector{Float64}(undef, solution.nx)
+const trap_offset_max = Vector{Float64}(undef, solution.nx)
 const trap_axial = Vector{Float64}(undef, solution.nx)
 
 const trap_x2 = Vector{Float64}(undef, solution.nx)
@@ -41,6 +43,8 @@ for xidx in 1:solution.nx
     # @show xidx, yidx, zidx
     fit = get(fit_cache, (zidx, yidx, Float64(xidx)))
     trap_offset[xidx] = fit[0, 0, 0]
+    trap_offset_min[xidx] = minimum(rf_data[:, :, xidx])
+    trap_offset_max[xidx] = maximum(rf_data[:, :, xidx])
     trap_axial[xidx] = fit[0, 0, 1] / xstride_m
 
     trap_x2[xidx] = fit[0, 0, 2] / xstride_mm^2
@@ -75,7 +79,9 @@ grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_zoomin")
 
 figure()
-plot(xs_um, trap_offset)
+plot(xs_um, trap_offset, "C1-")
+plot(xs_um, trap_offset_min, "C0--")
+plot(xs_um, trap_offset_max, "C2--")
 xlabel("X (\$\\mu m\$)")
 ylabel("RF potential")
 grid()
