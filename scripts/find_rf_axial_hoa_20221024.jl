@@ -25,6 +25,7 @@ const rf_data = solution.data[:, :, :, 2]
 const fitter = Fitting.PolyFitter(4, 4, 4, sizes=(5, 5, 15))
 const fit_cache = Fitting.PolyFitCache(fitter, rf_data)
 
+const trap_offset = Vector{Float64}(undef, solution.nx)
 const trap_axial = Vector{Float64}(undef, solution.nx)
 
 const trap_x2 = Vector{Float64}(undef, solution.nx)
@@ -41,6 +42,7 @@ for xidx in 1:solution.nx
     yidx, zidx = get(centers, xidx)
     # @show xidx, yidx, zidx
     fit = get(fit_cache, (zidx, yidx, Float64(xidx)))
+    trap_offset[xidx] = fit[0, 0, 0]
     trap_axial[xidx] = fit[0, 0, 1] / xstride_m
 
     trap_x2[xidx] = fit[0, 0, 2] / xstride_mm^2
@@ -52,7 +54,11 @@ const xs_um = x_index_to_axis.(Ref(solution), 1:solution.nx) .* 1000
 
 matopen("$(data_prefix).mat", "w") do mat
     write(mat, "xs_um", xs_um)
+    write(mat, "offset", trap_offset)
     write(mat, "field", trap_axial)
+    write(mat, "x2", trap_x2)
+    write(mat, "y2", trap_y2)
+    write(mat, "z2", trap_z2)
 end
 
 figure()
@@ -62,6 +68,13 @@ ylabel("Axial RF field (\$m^{-1}\$)")
 ylim([-7, 7])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)")
+
+figure()
+plot(xs_um, trap_offset)
+xlabel("X (\$\\mu m\$)")
+ylabel("RF potential")
+grid()
+NaCsPlot.maybe_save("$(imgs_prefix)_offset")
 
 figure()
 plot(xs_um, trap_x2)
