@@ -18,7 +18,7 @@ const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const fits_cache = Solutions.compensate_fitter3(solution)
 
-const prefix = joinpath(@__DIR__, "../data/compensate_short_outer_nozx_20220927")
+const prefix = joinpath(@__DIR__, "../data/compensate_short_outer_nozx_20221104")
 
 function get_rf_center(xpos_um)
     xidx = Solutions.x_axis_to_index(solution, xpos_um ./ 1000)
