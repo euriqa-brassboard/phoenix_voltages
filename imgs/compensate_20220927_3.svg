@@ -11373,7 +11373,7 @@ L 837.303563 145.213671
 L 837.448957 84.096525 
 L 837.556294 -1 
 L 837.556294 -1 
-" clip-path="url(#p6a465c224a)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"/>
+" clip-path="url(#p6a465c224a)" style="fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square"/>
    </g>
    <g id="patch_21">
     <path d="M 520.96125 607.86025 
@@ -11421,7 +11421,7 @@ z
      <path d="M 529.96125 379.334688 
 L 539.96125 379.334688 
 L 549.96125 379.334688 
-" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"/>
+" style="fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square"/>
     </g>
     <g id="text_67">
      <!-- With $x^2z$ -->
