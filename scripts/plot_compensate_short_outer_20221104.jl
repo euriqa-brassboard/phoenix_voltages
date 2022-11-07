@@ -6,6 +6,7 @@ using NaCsPlot
 using Statistics
 
 const prefixes = ["compensate_short_outer_20221104"=>("Origin", 10),
+                  "compensate_short_outer_x2z_20221104"=>("With \$x^2z\$", 11),
                   "compensate_short_outer_nozx_20221104"=>("No \$zx\$", 9)]
 const prefix = joinpath(@__DIR__, "../imgs/compensate_short_outer_20221104")
 
@@ -33,10 +34,10 @@ end
 function make_plot(solutions, term)
     max_median = 0
     min_min = Inf
-    for (name, sols) in solutions
+    for (i, (name, sols)) in enumerate(solutions)
         sol = get(sols, term, nothing)
         sol === nothing && continue
-        plot(sol.xpos_um, sol.maxv, label=name)
+        plot(sol.xpos_um, sol.maxv, label=name, color="C$(i - 1)")
         max_median = max(max_median, median(sol.maxv[-1000 .< sol.xpos_um .< 1000]))
         min_min = min(min_min, minimum(sol.maxv))
     end
@@ -82,8 +83,8 @@ subplot(2, 2, 2)
 make_plot(solutions, "x3")
 subplot(2, 2, 3)
 make_plot(solutions, "x4")
-# subplot(2, 2, 4)
-# make_plot(solutions, "x2z")
+subplot(2, 2, 4)
+make_plot(solutions, "x2z")
 tight_layout()
 NaCsPlot.maybe_save("$(prefix)_3")
 
