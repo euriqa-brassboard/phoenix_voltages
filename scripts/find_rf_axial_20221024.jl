@@ -32,11 +32,20 @@ const trap_x2 = Vector{Float64}(undef, solution.nx)
 const trap_y2 = Vector{Float64}(undef, solution.nx)
 const trap_z2 = Vector{Float64}(undef, solution.nx)
 
+const trap_offset_pseudo = Vector{Float64}(undef, solution.nx)
+const trap_axial_pseudo = Vector{Float64}(undef, solution.nx)
+
 const xstride_m = solution.stride[3] / 1000
 
 const xstride_mm = solution.stride[3]
 const ystride_mm = solution.stride[2]
 const zstride_mm = solution.stride[1]
+
+const e = 1.60217663e-19 # C
+const Ω_trap = 2π * 46.25e6 # Hz
+const NA = 6.02214076e23
+const m_Yb171 = 170.9363315e-3 / NA # kg
+const scale_rf_pseudo = e / 4 / m_Yb171 / Ω_trap^2 # V / (V/m)^2
 
 for xidx in 1:solution.nx
     yidx, zidx = get(centers, xidx)
@@ -45,7 +54,12 @@ for xidx in 1:solution.nx
     trap_offset[xidx] = fit[0, 0, 0]
     trap_offset_min[xidx] = minimum(rf_data[:, :, xidx])
     trap_offset_max[xidx] = maximum(rf_data[:, :, xidx])
-    trap_axial[xidx] = fit[0, 0, 1] / xstride_m
+    field = fit[0, 0, 1] / xstride_m # m^-1
+    curvature = fit[0, 0, 2] / xstride_m^2 # m^-2
+    trap_axial[xidx] = field
+
+    trap_offset_pseudo[xidx] = scale_rf_pseudo * field^2 # V / V^2
+    trap_axial_pseudo[xidx] = scale_rf_pseudo * 4 * field * curvature # V/m / V^2
 
     trap_x2[xidx] = fit[0, 0, 2] / xstride_mm^2
     trap_y2[xidx] = fit[0, 2, 0] / ystride_mm^2
@@ -58,6 +72,8 @@ matopen("$(data_prefix).mat", "w") do mat
     write(mat, "xs_um", xs_um)
     write(mat, "offset", trap_offset)
     write(mat, "field", trap_axial)
+    write(mat, "pseudo_offset", trap_offset_pseudo)
+    write(mat, "pseudo_field", trap_axial_pseudo)
     write(mat, "x2", trap_x2)
     write(mat, "y2", trap_y2)
     write(mat, "z2", trap_z2)
@@ -104,5 +120,19 @@ ylabel("Violation (\$mm^{-2}\$)")
 ylim([-0.01, 0.01])
 grid()
 NaCsPlot.maybe_save("$(imgs_prefix)_0")
+
+figure()
+plot(xs_um, trap_offset_pseudo)
+xlabel("X (\$\\mu m\$)")
+ylabel("Axial pseudopotential (\$V / V^2\$)")
+grid()
+NaCsPlot.maybe_save("$(imgs_prefix)_pseudo")
+
+figure()
+plot(xs_um, trap_axial_pseudo)
+xlabel("X (\$\\mu m\$)")
+ylabel("Axial pseudopotential gradient (\$V/m / V^2\$)")
+grid()
+NaCsPlot.maybe_save("$(imgs_prefix)_pseudo_grad")
 
 NaCsPlot.maybe_show()
