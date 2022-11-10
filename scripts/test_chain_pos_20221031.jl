@@ -39,8 +39,8 @@ const x2s = range(0, -10, 1001)
 @time for x2 in x2s
     X2[] = x2
     JuMP.optimize!(model)
-    for ((ion, charge), ions) in zip(chain_model.ions, ion_pos)
-        push!(ions, value(ion))
+    for (ion, ions) in zip(chain_model.ions, ion_pos)
+        push!(ions, value(ion.pos))
     end
     for (mode, freqs) in zip(axial_modes(chain_model), axial_freqs)
         push!(freqs, mode)
