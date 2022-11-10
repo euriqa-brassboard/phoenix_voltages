@@ -2,6 +2,7 @@
 
 using JuMP
 using Interpolations
+using LinearAlgebra
 
 struct IonChainModel{F,∇F,∇²F}
     model::Model
@@ -81,6 +82,55 @@ function update_init_pos!(model::IonChainModel)
     for ((ion, charge), v) in zip(model.ions, values)
         set_start_value(ion, v)
     end
+end
+
+function axial_modes(model::IonChainModel)
+    values = [value(ion) for (ion, charge) in model.ions]
+    nions = length(values)
+    H = zeros(nions, nions)
+    for i in 1:nions
+        pos = values[i]
+        H[i, i] = model.∇²f(pos)
+    end
+    for i2 in 2:nions
+        pos2 = values[i2]
+        for i1 in 1:i2 - 1
+            pos1 = values[i1]
+            term = 2 / (pos2 - pos1)^3
+            H[i1, i1] += term
+            H[i2, i2] += term
+            H[i1, i2] -= term
+            H[i2, i1] -= term
+        end
+    end
+    evs = eigvals(H)
+    return [ev >= 0 ? sqrt(ev) : -sqrt(-ev) for ev in evs]
+end
+
+# Input function computes the second order derivative of the RF potential
+# This assumes that the good axis for radial motion does not depend on
+# the ion position, otherwise we need to solve all radial modes at the same time...
+function radial_modes(model::IonChainModel, r_hess)
+    values = [value(ion) for (ion, charge) in model.ions]
+    nions = length(values)
+    H = zeros(nions, nions)
+    for i in 1:nions
+        pos = values[i]
+        H[i, i] = r_hess(pos)
+    end
+    for i2 in 2:nions
+        pos2 = values[i2]
+        for i1 in 1:i2 - 1
+            pos1 = values[i1]
+            term = 1 / (pos2 - pos1)^3
+            H[i1, i1] -= term
+            H[i2, i2] -= term
+            H[i1, i2] += term
+            H[i2, i1] += term
+        end
+    end
+    evs = eigvals(H)
+    return [ev >= 0 ? sqrt(ev) : -sqrt(-ev) for ev in evs]
 end
 
 function interpolate_ref_functions(fi::Ref)
