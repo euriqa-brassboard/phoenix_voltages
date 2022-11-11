@@ -94,8 +94,8 @@ function generate_lines(xml_io, transfer_lines)
     section1_end = length(out_lines) - 1
 
     load_end_name = pos_to_name(xpos_ums1[end])
-    merge_end_name = "200um"
-    move_end_name = "300um"
+    merge_end_name = "455um"
+    move_end_name = "555um"
 
     for line in transfer_lines[2]
         push!(out_lines, line)
