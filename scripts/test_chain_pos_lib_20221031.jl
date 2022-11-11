@@ -4,6 +4,9 @@ using JuMP
 using Interpolations
 using LinearAlgebra
 
+# TODO: support different ion experiencing different potentials
+# (ions with different mass experiences different pseudo potential)
+
 struct IonInfo
     pos::VariableRef
     charge::Float64
