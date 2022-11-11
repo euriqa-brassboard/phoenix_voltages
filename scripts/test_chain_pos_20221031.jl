@@ -28,10 +28,10 @@ const X4 = Ref(0.0)
 const chain_model = gen_model(gen_polynomial_potential(X, X2, Ref(0.0), X4)...)
 const builder = ModelBuilder(chain_model)
 
-const nions = 6
+const nions = 31
 
 for i in 1:nions
-    add_ion!(builder, i - (nions - 1) / 2, 1, (i % 2) * 15 + 1)
+    add_ion!(builder, i - (nions - 1) / 2, 1)
     # add_ion!(builder, i - (nions - 1) / 2, 1)
 end
 
@@ -41,7 +41,7 @@ const ion_pos = [Float64[] for i in 1:nions]
 const axial_freqs = [Float64[] for i in 1:nions]
 const radial_freqs = [Float64[] for i in 1:nions]
 
-const x2s = range(0.001, 0.8, 1001)
+const x2s = range(0.001, 0.2, 1001)
 
 @time for x2 in x2s
     X2[] = x2 / 2
