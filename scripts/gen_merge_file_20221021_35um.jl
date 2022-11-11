@@ -106,7 +106,8 @@ function generate_lines(xml_io, transfer_lines)
     prev_lineidx = section1_end
     for (xpos_um, line) in zip(xpos_ums_eff2, transfer_lines[2])
         push!(out_lines, line)
-        if xpos_um % 5 != 0 || xpos_um == xpos_ums_eff2[end]
+        if (xpos_um % 5 != 0 && xpos_um < xpos_ums_eff2[end] - 70) ||
+            xpos_um == xpos_ums_eff2[end]
             continue
         end
         lineidx = length(out_lines) - 1
