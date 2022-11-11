@@ -97,17 +97,20 @@ function axial_modes(model::IonChainModel)
     H = zeros(nions, nions)
     for i in 1:nions
         pos = values[i]
-        H[i, i] = model.∇²f(pos)
+        H[i, i] = model.∇²f(pos) / model.ions[i].mass
     end
     for i2 in 2:nions
         pos2 = values[i2]
+        mass2 = model.ions[i2].mass
         for i1 in 1:i2 - 1
             pos1 = values[i1]
+            mass1 = model.ions[i1].mass
+            mass12 = sqrt(mass1 * mass2)
             term = 2 / (pos2 - pos1)^3
-            H[i1, i1] += term
-            H[i2, i2] += term
-            H[i1, i2] -= term
-            H[i2, i1] -= term
+            H[i1, i1] += term / mass1
+            H[i2, i2] += term / mass2
+            H[i1, i2] -= term / mass12
+            H[i2, i1] -= term / mass12
         end
     end
     evs = eigvals(H)
@@ -123,17 +126,20 @@ function radial_modes(model::IonChainModel, r_hess)
     H = zeros(nions, nions)
     for i in 1:nions
         pos = values[i]
-        H[i, i] = r_hess(pos)
+        H[i, i] = r_hess(pos) / model.ions[i].mass
     end
     for i2 in 2:nions
         pos2 = values[i2]
+        mass2 = model.ions[i2].mass
         for i1 in 1:i2 - 1
             pos1 = values[i1]
+            mass1 = model.ions[i1].mass
+            mass12 = sqrt(mass1 * mass2)
             term = 1 / (pos2 - pos1)^3
-            H[i1, i1] -= term
-            H[i2, i2] -= term
-            H[i1, i2] += term
-            H[i2, i1] += term
+            H[i1, i1] -= term / mass1
+            H[i2, i2] -= term / mass2
+            H[i1, i2] += term / mass12
+            H[i2, i1] += term / mass12
         end
     end
     evs = eigvals(H)
