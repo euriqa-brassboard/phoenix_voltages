@@ -32,7 +32,6 @@ const nions = 31
 
 for i in 1:nions
     add_ion!(builder, i - (nions - 1) / 2, 1)
-    # add_ion!(builder, i - (nions - 1) / 2, 1)
 end
 
 finalize_model!(builder)
