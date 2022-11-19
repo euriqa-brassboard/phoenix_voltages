@@ -19,10 +19,43 @@ const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 
 struct Frame
-    target::Vector{Float64}
-    freedom::Vector{Tuple{Vector{Float64},NTuple{2,Float64}}}
+    solution::Vector{Float64}
+    limited_solution::Vector{Vector{Float64}}
+    limits::Vector{NTuple{2,Float64}}
     electrodes::Vector{Int}
-    electrode_potentials::Matrix{Float64}
+    function Frame(target::Vector, freedom::Vector, electrodes::Vector{Int},
+                   electrode_potentials::Matrix)
+        neles = length(electrodes)
+        @assert size(electrode_potentials, 2) == neles
+
+        limited_solution = Vector{Float64}[]
+        limits = NTuple{2,Float64}[]
+        for flex in freedom
+            lb, ub = flex[2]
+            if lb > ub
+                continue
+            end
+            if lb == ub
+                if lb != 0
+                    target = target .+ lb .* flex[1]
+                end
+                continue
+            end
+            push!(limited_solution, electrode_potentials \ flex[1])
+            push!(limits, flex[2])
+        end
+        v = electrode_potentials \ target
+        coeff = electrode_potentials
+        B = qr(coeff').Q[:, (size(coeff, 1) + 1):end]
+        nv, nt = size(B)
+        @assert length(v) == nv
+        for i in 1:nt
+            push!(limited_solution, B[:, i])
+            push!(limits, (-Inf, Inf))
+        end
+
+        return new(v, limited_solution, limits, electrodes)
+    end
 end
 
 struct MultiFitterCache
@@ -486,40 +519,10 @@ end
 const prefix = joinpath(@__DIR__, "../data/merge_coeff_20221118")
 
 function dump_frame(xpos_um, frame)
-    neles = length(frame.electrodes)
-    @assert size(frame.electrode_potentials, 2) == neles
-
-    target = frame.target
-    free_terms = Vector{Float64}[]
-    free_term_limits = NTuple{2,Float64}[]
-    for flex in frame.freedom
-        lb, ub = flex[2]
-        if lb > ub
-            continue
-        end
-        if lb == ub
-            if lb != 0
-                target = target .+ lb .* flex[1]
-            end
-            continue
-        end
-        push!(free_terms, frame.electrode_potentials \ flex[1])
-        push!(free_term_limits, flex[2])
-    end
-    v = frame.electrode_potentials \ target
-    coeff = frame.electrode_potentials
-    B = qr(coeff').Q[:, (size(coeff, 1) + 1):end]
-    nv, nt = size(B)
-    @assert length(v) == nv
-    for i in 1:nt
-        push!(free_terms, B[:, i])
-        push!(free_term_limits, (-Inf, Inf))
-    end
-
     return Dict("electrodes"=>frame.electrodes,
-                "solution"=>v,
-                "limited_solution"=>free_terms,
-                "limits"=>[v[i] for v in free_term_limits, i in 1:2],
+                "solution"=>frame.solution,
+                "limited_solution"=>frame.limited_solution,
+                "limits"=>[v[i] for v in frame.limits, i in 1:2],
                 "xpos_um"=>xpos_um)
 end
 
