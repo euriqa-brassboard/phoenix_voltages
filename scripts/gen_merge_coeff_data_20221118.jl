@@ -499,6 +499,10 @@ function create_frame1(eles, xpos_um)
     push!(freedom, ((center_one, move_one), -Inf, Inf))
 
     dc_level_limit = get_dc_level_limit(xpos_um)
+    if xpos_um == loading_um
+        # Try balancing the DC level during loading
+        dc_level_limit = 0.0
+    end
     push!(freedom, ((center_one, .-move_one), -dc_level_limit, dc_level_limit))
 
     return construct_frame(eles, target, freedom,
