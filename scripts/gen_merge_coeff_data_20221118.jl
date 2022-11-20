@@ -23,6 +23,7 @@ struct Frame
     limited_solution::Vector{Vector{Float64}}
     limits::Vector{NTuple{2,Float64}}
     electrodes::Vector{Int}
+    constraints::Vector{Tuple{Vector{Float64},Float64,Float64}}
     function Frame(target::Vector, freedom::Vector, electrodes::Vector{Int},
                    electrode_potentials::Matrix)
         neles = length(electrodes)
@@ -54,7 +55,8 @@ struct Frame
             push!(limits, (-Inf, Inf))
         end
 
-        return new(v, limited_solution, limits, electrodes)
+        return new(v, limited_solution, limits, electrodes,
+                   Tuple{Vector{Float64},Float64,Float64}[])
     end
 end
 
@@ -349,6 +351,22 @@ function get_dc_level_limit(xpos_um)
     return interpolate(r, dc_level_limit_max, 0)
 end
 
+function get_barriers(xpos_um)
+    barrier_dist = 175
+    barrier_max_height = 1.0
+
+    barriers = NTuple{3,Float64}[(xpos_um - barrier_dist, xpos_um, barrier_max_height),
+                                 (center_um + barrier_dist, center_um, barrier_max_height)]
+
+    r = get_ratio(center_um - xpos_um, barrier_dist * 3.5, barrier_dist * 7)
+    mid_height = interpolate(r, 0.0, barrier_max_height)
+    if mid_height > 0
+        push!(barriers, (xpos_um + barrier_dist, xpos_um, mid_height))
+        push!(barriers, (center_um - barrier_dist, center_um, mid_height))
+    end
+    return barriers
+end
+
 function construct_frame(eles, target, freedom, ranges, centers, version=1)
     neles = length(eles)
     _target = flatten_blocks(target)
@@ -510,14 +528,40 @@ function create_frame1(eles, xpos_um)
                            (center_pos_idx, move_pos_idx))
 end
 
+function get_potential_diff_for_term(frame, potential, pos, base, term)
+    pos_inds = get_rf_center(pos)
+    pos_inds_r = (pos_inds[3], pos_inds[2], pos_inds[1])
+    base_inds = get_rf_center(base)
+    base_inds_r = (base_inds[3], base_inds[2], base_inds[1])
+    fit_cache = get(multi_fit_cache, 9)
+    res = 0.0
+    for (e, v) in zip(frame.electrodes, term)
+        res += v * (Potentials.get_single(fit_cache, e, pos_inds_r, (0, 0, 0)) -
+            Potentials.get_single(fit_cache, e, base_inds_r, (0, 0, 0)))
+    end
+    return res
+end
+
+function add_barrier!(frame, xpos_um)
+    barriers = get_barriers(xpos_um)
+    terms = Iterators.flatten(((frame.solution,), frame.limited_solution))
+    for (pos, base_pos, height) in barriers
+        push!(frame.constraints, ([get_potential_diff_for_term(frame, solution, pos,
+                                                               base_pos, term)
+                                   for term in terms], height, Inf))
+    end
+end
+
 function create_frame(xpos_um)
     @show xpos_um
     eles = get_electrodes(xpos_um)
     if xpos_um >= frame_cutoff_um
-        return eles, create_frame0(eles, xpos_um)
+        frame = create_frame0(eles, xpos_um)
     else
-        return eles, create_frame1(eles, xpos_um)
+        frame = create_frame1(eles, xpos_um)
     end
+    add_barrier!(frame, xpos_um)
+    return frame
 end
 
 const prefix = joinpath(@__DIR__, "../data/merge_coeff_20221118")
@@ -527,6 +571,8 @@ function dump_frame(xpos_um, frame)
                 "solution"=>frame.solution,
                 "limited_solution"=>frame.limited_solution,
                 "limits"=>[v[i] for v in frame.limits, i in 1:2],
+                "constraints_terms"=>[c[1] for c in frame.constraints],
+                "constraints_limits"=>[c[i] for c in frame.constraints, i in 2:3],
                 "xpos_um"=>xpos_um)
 end
 
@@ -536,7 +582,7 @@ const xpos_ums = loading_um:center_um
 const results = Dict{String,Any}[]
 for xpos_um in xpos_ums
     @time begin
-        eles, frame = create_frame(xpos_um)
+        frame = create_frame(xpos_um)
         push!(results, dump_frame(xpos_um, frame))
     end
 end
