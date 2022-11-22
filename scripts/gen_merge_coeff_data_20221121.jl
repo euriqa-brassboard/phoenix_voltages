@@ -153,8 +153,8 @@ const move_x2_init = 6.0
 const move_x2_final = 1.0
 const center_x2 = 1.0
 
-const move_relax_start_um = -250
-const move_relax_end_um = -160
+const move_relax_start_um = -500
+const move_relax_end_um = -320
 function get_move_x2(xpos_um)
     r = get_ratio(xpos_um, move_relax_start_um, move_relax_end_um)
     return interpolate(r, move_x2_init, move_x2_final)
