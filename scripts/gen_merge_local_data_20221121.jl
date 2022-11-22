@@ -34,8 +34,10 @@ function local_opt(v, free_terms, free_term_limits,
     @constraint(model, maxv .>= v)
     @constraint(model, maxv .>= .-v)
 
+    constraints = Tuple{AffExpr,Float64,Float64}[]
     for (cterm, (lb, ub)) in zip(constraints_terms, eachrow(constraints_limits))
         cterm_val = @expression(model, cterm[1] + sum(cs .* cterm[2:end]))
+        push!(constraints, (cterm_val, lb, ub))
         if isfinite(lb)
             @constraint(model, cterm_val >= lb)
         end
@@ -46,6 +48,13 @@ function local_opt(v, free_terms, free_term_limits,
 
     @objective(model, Min, maxv)
     JuMP.optimize!(model)
+
+    for (cterm_val, lb, ub) in constraints
+        cterm_val = value(cterm_val)
+        if cterm_val > ub + 1e-5 || cterm_val < lb - 1e-5
+            @warn "Constraint value $cterm_val outside of range [$lb, $ub]"
+        end
+    end
 
     return value.(cs), value.(v)
 end
