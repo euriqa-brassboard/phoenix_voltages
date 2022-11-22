@@ -136,14 +136,14 @@ const loading_um = -3045
 const center_um = 0
 
 const center_electrodes = Mappings.find_electrodes(solution.electrode_index,
-                                                   center_um, min_num=20,
-                                                   min_dist=350)
+                                                   center_um, min_num=30,
+                                                   min_dist=550)
 function get_electrodes(xpos_um)
     if abs(xpos_um - center_um) <= 100
         eles = center_electrodes
     else
         eles = Mappings.find_electrodes(solution.electrode_index,
-                                        xpos_um, min_num=15, min_dist=250)
+                                        xpos_um, min_num=16, min_dist=370)
         union!(eles, center_electrodes)
     end
     return sort!(collect(eles))
@@ -352,16 +352,16 @@ function get_dc_level_limit(xpos_um)
 end
 
 function get_barriers(xpos_um)
-    barrier_dist = 200
-    barrier_max_height = 2.5
+    barrier_dist = 245
+    barrier_max_height = 3
 
-    barriers = NTuple{3,Float64}[(xpos_um - barrier_dist, xpos_um, barrier_max_height / 2),
+    barriers = NTuple{3,Float64}[(xpos_um - barrier_dist, xpos_um, barrier_max_height * 0.4),
                                  (center_um + barrier_dist, center_um, barrier_max_height)]
 
     r = get_ratio(center_um - xpos_um, barrier_dist * 3.5, barrier_dist * 7)
     mid_height = interpolate(r, 0.0, barrier_max_height)
     if mid_height > 0
-        push!(barriers, (xpos_um + barrier_dist, xpos_um, mid_height))
+        push!(barriers, (xpos_um + barrier_dist, xpos_um, mid_height * 0.8))
         push!(barriers, (center_um - barrier_dist, center_um, mid_height))
     end
     return barriers
