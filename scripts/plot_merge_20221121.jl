@@ -38,7 +38,7 @@ figure()
 for (label, solution) in solutions
     plot(solution.xpos_um, solution.maxv, label=label)
 end
-ylim([0.5, 30])
+ylim([10, 50])
 legend(fontsize=10, ncol=3)
 grid()
 xlabel("Position (μm)")
