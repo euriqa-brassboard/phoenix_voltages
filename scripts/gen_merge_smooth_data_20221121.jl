@@ -110,7 +110,7 @@ function add_block!(builder::ModelBuilder, from, to)
     maxmaxvdiff_init = 0.0
     for i in from:to
         data = coeff_data[i]
-        @show data["xpos_um"]
+        # @show data["xpos_um"]
         sol = prev_solution[i]
         electrodes = data["electrodes"]
         v = data["solution"]
