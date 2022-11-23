@@ -354,15 +354,30 @@ end
 function get_barriers(xpos_um)
     barrier_dist = 245
     barrier_max_height = 3
+    barrier2_dist = 175
+    barrier2_max_height = 1
 
-    barriers = NTuple{3,Float64}[(xpos_um - barrier_dist, xpos_um, barrier_max_height * 0.25),
-                                 (center_um + barrier_dist, center_um, barrier_max_height)]
+    barriers = NTuple{3,Float64}[(xpos_um - barrier_dist, xpos_um,
+                                  barrier_max_height * 0.25),
+                                 (center_um + barrier_dist, center_um,
+                                  barrier_max_height),
+                                 (xpos_um - barrier2_dist, xpos_um,
+                                  barrier2_max_height * 0.25),
+                                 (center_um + barrier2_dist, center_um,
+                                  barrier2_max_height)]
 
     r = get_ratio(center_um - xpos_um, barrier_dist * 3.5, barrier_dist * 7)
     mid_height = interpolate(r, 0.0, barrier_max_height)
     if mid_height > 0
         push!(barriers, (xpos_um + barrier_dist, xpos_um, mid_height * 0.5))
         push!(barriers, (center_um - barrier_dist, center_um, mid_height))
+    end
+
+    r2 = get_ratio(center_um - xpos_um, barrier2_dist * 3.5, barrier2_dist * 7)
+    mid_height2 = interpolate(r2, 0.0, barrier2_max_height)
+    if mid_height2 > 0
+        push!(barriers, (xpos_um + barrier2_dist, xpos_um, mid_height2 * 0.5))
+        push!(barriers, (center_um - barrier2_dist, center_um, mid_height2))
     end
     return barriers
 end
