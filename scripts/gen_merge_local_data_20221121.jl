@@ -6,9 +6,20 @@ using JuMP
 using Ipopt
 using MAT
 
-const coeff_data, electrode_names = matopen(joinpath(@__DIR__, "../data/merge_coeff_20221121.mat")) do mat
-    return read(mat, "data"), read(mat, "electrode_names")
+function load_coeff_multi(dir)
+    datas = Tuple{Int,Vector{Any}}[]
+    for name in readdir(dir)
+        m = match(r"data(\d+)\.mat", name)
+        m === nothing && continue
+        push!(datas, (parse(Int, m[1]), matread(joinpath(dir, name))["data"]))
+    end
+    sort!(datas, by=x->x[1])
+    return (reduce(vcat, (data[2] for data in datas)),
+            matread(joinpath(dir, "electrode_names.mat"))["electrode_names"])
 end
+
+const coeff_data, electrode_names =
+    load_coeff_multi(joinpath(@__DIR__, "../data/merge_coeff_20221121"))
 
 const xpos_ums = [data["xpos_um"] for data in coeff_data]
 

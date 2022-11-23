@@ -587,7 +587,15 @@ for xpos_um in xpos_ums
     end
 end
 
-matopen("$(prefix).mat", "w") do mat
-    write(mat, "data", results)
+mkpath(prefix)
+
+matopen("$(prefix)/electrode_names.mat", "w") do mat
     write(mat, "electrode_names", solution.electrode_names)
+end
+
+const block_size = 900
+for i in 1:block_size:length(results)
+    matopen("$(prefix)/data$i.mat", "w") do mat
+        write(mat, "data", results[i:min(i + block_size - 1, length(results))])
+    end
 end
