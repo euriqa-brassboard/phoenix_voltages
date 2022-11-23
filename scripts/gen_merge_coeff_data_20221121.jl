@@ -367,6 +367,8 @@ function get_barriers(xpos_um)
     barriers = NTuple{3,Float64}[]
     add_barrier_pairs!(barriers, xpos_um, 245, 3.0)
     add_barrier_pairs!(barriers, xpos_um, 175, 1.0)
+    add_barrier_pairs!(barriers, xpos_um, 105, 0.2)
+    add_barrier_pairs!(barriers, xpos_um, 70, 0.1)
     return barriers
 end
 
