@@ -5,7 +5,8 @@ using PyPlot
 using NaCsPlot
 using Statistics
 
-const prefixes = ["compensate_red_20221213"=>("Origin", 10)]
+const prefixes = ["compensate_red_20221213"=>("Origin", 10),
+                  "compensate_red2_20221213"=>("Fewer", 10)]
 const prefix = joinpath(@__DIR__, "../imgs/compensate_red_20221213")
 
 function load_solution(name)
