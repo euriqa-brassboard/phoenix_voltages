@@ -39,8 +39,10 @@ function make_plot(solutions, term)
         max_median = max(max_median, median(sol.maxv[-750 .< sol.xpos_um .< 750]))
         min_min = min(min_min, minimum(sol.maxv))
     end
-    ymax = max_median * 1.6
+    ymax = max_median * 2.2
     ylim([max(0, min_min - (ymax - min_min) * 0.02), ymax])
+    # Position of the ion (in the middle of Q16/17)
+    axvline(-175, color="red", ls="--")
     # yscale("log")
     legend(fontsize=10, ncol=3)
     grid()
