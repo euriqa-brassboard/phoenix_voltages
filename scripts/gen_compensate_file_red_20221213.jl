@@ -47,6 +47,14 @@ function fix_electrode_name(orig_name)
     return orig_name
 end
 
+function unfix_electrode_name(orig_name)
+    m = match(r"^([A-Z])0([0-9])$", orig_name)
+    if m !== nothing
+        return "$(m[1])$(m[2])"
+    end
+    return orig_name
+end
+
 function solution_to_vmap(solution, electrode_index, electrode_names)
     vmap = Dict{String,Float64}()
     for (v, ei) in zip(solution, electrode_index)
@@ -63,6 +71,7 @@ mutable struct SolutionData
     z_comp::Vector{Float64}
     simpleRot::Vector{Float64}
     PotentialSqueeze::Vector{Float64}
+    trap_adjust::Vector{Float64}
     trap::Vector{Float64}
 end
 
@@ -84,6 +93,7 @@ function vmap_to_solution_data(vmaps, idx)
         get_data_line(vmaps["dz"][idx], global_adjust_electrodes) .* 1000,
         get_data_line(vmaps["yz"][idx], global_adjust_electrodes),
         get_data_line(vmaps["z2"][idx], global_adjust_electrodes),
+        get_data_line(vmaps["x2"][idx], global_adjust_electrodes),
         get_data_line(vmaps["x2"][idx], trap_electrodes) .* 0.09
     )
 end
@@ -118,32 +128,31 @@ function println_w(io, args...)
 end
 
 function write_global_adjust(name, info)
+    adj_lines = Tuple{String,String}[]
+    push!(adj_lines, ("z_comp", line_to_txt(info.z_comp)))
+    push!(adj_lines, ("y_comp", line_to_txt(info.y_comp)))
+    push!(adj_lines, ("x_comp", line_to_txt(info.x_comp)))
+    push!(adj_lines, ("simpleRot", line_to_txt(info.simpleRot)))
+    push!(adj_lines, ("PotentialSqueeze", line_to_txt(info.PotentialSqueeze)))
+    push!(adj_lines, ("trap", line_to_txt(info.trap_adjust)))
+    for (idx, ele) in enumerate(global_adjust_electrodes)
+        ele_line = line_to_txt([j == idx ? 1 : 0
+                                for j in 1:length(global_adjust_electrodes)])
+        push!(adj_lines, (unfix_electrode_name(ele), ele_line))
+    end
+
     open(name, "w") do io
         for line in header
             println_w(io, line)
         end
-        println_w(io, "z_comp=0")
-        println_w(io, "y_comp=1")
-        println_w(io, "simpleRot=2")
-        println_w(io, "x_comp = 3")
-        lineno = 3
-        for ele in global_adjust_electrodes
-            lineno += 1
-            println_w(io, "$ele=$(lineno)")
+        for (i, (name, line)) in enumerate(adj_lines)
+            println_w(io, "$(name)=$(i - 1)")
         end
-        lineno += 1
-        println_w(io, "PotentialSqueeze = $(lineno)")
         println_w(io)
         println_w(io, join(global_adjust_electrodes, "\t"))
-        println_w(io, line_to_txt(info.z_comp))
-        println_w(io, line_to_txt(info.y_comp))
-        println_w(io, line_to_txt(info.simpleRot))
-        println_w(io, line_to_txt(info.x_comp))
-        for idx in 1:length(global_adjust_electrodes)
-            println_w(io, line_to_txt([j == idx ? 1 : 0
-                                       for j in 1:length(global_adjust_electrodes)]))
+        for (name, line) in adj_lines
+            println_w(io, line)
         end
-        println_w(io, line_to_txt(info.PotentialSqueeze))
     end
 end
 
