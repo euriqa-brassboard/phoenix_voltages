@@ -94,7 +94,7 @@ function vmap_to_solution_data(vmaps, idx)
         get_data_line(vmaps["yz"][idx], global_adjust_electrodes),
         get_data_line(vmaps["z2"][idx], global_adjust_electrodes),
         get_data_line(vmaps["x2"][idx], global_adjust_electrodes),
-        get_data_line(vmaps["x2"][idx], trap_electrodes) .* 0.09
+        get_data_line(vmaps["x2"][idx], trap_electrodes)
     )
 end
 
@@ -156,10 +156,10 @@ function write_global_adjust(name, info)
     end
 end
 
-function write_trap(name, info)
+function write_trap(name, info, vscale)
     open(name, "w") do io
         println_w(io, join(trap_electrodes, "\t"))
-        println_w(io, line_to_txt(info.trap))
+        println_w(io, line_to_txt(info.trap .* vscale))
     end
 end
 
@@ -169,6 +169,8 @@ for (name, solution) in solutions
         mkpath(outputdir)
         write_global_adjust(joinpath(outputdir, "global_adjust.txt"),
                             solution.sol_datas[i])
-        write_trap(joinpath(outputdir, "trap.txt"), solution.sol_datas[i])
+        write_trap(joinpath(outputdir, "trap.txt"), solution.sol_datas[i], 0.3^2)
+        write_trap(joinpath(outputdir, "trap_200k.txt"), solution.sol_datas[i], 0.2^2)
+        write_trap(joinpath(outputdir, "trap_400k.txt"), solution.sol_datas[i], 0.4^2)
     end
 end
