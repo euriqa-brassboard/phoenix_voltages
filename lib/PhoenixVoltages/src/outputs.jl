@@ -23,6 +23,12 @@ function str_float(v)
     return uppercase(string(v))
 end
 
+function eachline_nocomment(file)
+    it0 = eachline(file)
+    it1 = Iterators.map(line->strip(split(line, "#", limit=2)[1]), it0)
+    return Iterators.filter(!isempty, it1)
+end
+
 struct MapFile
     # Only the names seem to be useful
     names::Vector{String}
@@ -31,7 +37,7 @@ end
 
 function load_file(file, ::Type{MapFile})
     res = MapFile()
-    for line in eachline(file)
+    for line in eachline_nocomment(file)
         push!(res.names, split(line, '\t', limit=2)[1])
     end
     return res
@@ -64,7 +70,7 @@ end
 function load_file(file, ::Type{CompensationFile}; mapfile=nothing)
     # Assume the eachline iterator is stateful
     term_names = String[]
-    lines = eachline(file)
+    lines = eachline_nocomment(file)
     for line in lines
         fields = split(line, '\t')
         assign_expr = split(fields[1], '=', limit=2)
@@ -116,7 +122,7 @@ end
 
 function load_file(file, ::Type{TransferFile}; mapfile=nothing)
     # Assume the eachline iterator is stateful
-    lines = eachline(file)
+    lines = eachline_nocomment(file)
     names = split(first(lines), '\t')
     if mapfile === nothing
         mapfile = MapFile(names)
