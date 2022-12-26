@@ -31,7 +31,7 @@ end
 
 function find_all_flat_points(all_data::A; init=ntuple(i->(size(all_data, i) + 1) / 2, Val(N - 1))) where (A<:AbstractArray{T,N} where T) where N
 
-    npoints = size(all_data, 3)
+    npoints = size(all_data, N)
     all_res = Matrix{Float64}(undef, npoints, N - 1)
 
     for i in 1:npoints
