@@ -85,7 +85,6 @@ function gradient(res::PolyFitResult{N}, dim, pos::Vararg{Any,N}) where N
     sizes = res.orders .+ 1
     lindices = LinearIndices(sizes)
     cindices = CartesianIndices(sizes)
-    order_offset = ntuple((i)->i == dim ? -1 : 0, Val(N))
     v = 0.0
     for iorder in lindices
         # Original polymomial orders along each dimensions
