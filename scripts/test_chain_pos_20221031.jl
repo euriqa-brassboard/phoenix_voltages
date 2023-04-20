@@ -2,7 +2,6 @@
 
 include("test_chain_pos_lib_20221031.jl")
 
-using NLopt
 using Ipopt
 using PyPlot
 using Test
