@@ -145,8 +145,8 @@ function radial_modes(model::IonChainModel, r_hess)
             H[i2, i1] += term / mass12
         end
     end
-    evs = eigvals(H)
-    return [ev >= 0 ? sqrt(ev) : -sqrt(-ev) for ev in evs]
+    evs, vecs = eigen(H)
+    return [ev >= 0 ? sqrt(ev) : -sqrt(-ev) for ev in evs], vecs
 end
 
 function interpolate_ref_functions(fi::Ref)

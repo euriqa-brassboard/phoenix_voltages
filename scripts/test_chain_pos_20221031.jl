@@ -50,7 +50,7 @@ const x2s = range(0.1, 0.3, 1001)
     for (mode, freqs) in zip(axial_modes(chain_model), axial_freqs)
         push!(freqs, mode)
     end
-    for (mode, freqs) in zip(radial_modes(chain_model, x->4), radial_freqs)
+    for (mode, freqs) in zip(radial_modes(chain_model, x->4)[1], radial_freqs)
         push!(freqs, mode)
     end
     update_init_pos!(chain_model)
