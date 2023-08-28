@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<VoltageAdjust>
+  <ShuttlingGraph>
+    <ShuttleEdge idleCount="500" steps="3" startLength="0" stopLength="0" startLine="0" startName="LoadingJump" stopLine="1" stopName="Loading"/>
+    <ShuttleEdge idleCount="500" steps="3" startLength="0" stopLength="0" startLine="1" startName="Loading" stopLine="2" stopName="Center"/>
+    <ShuttleEdge idleCount="500" steps="3" startLength="0" stopLength="0" startLine="1" startName="Loading" stopLine="3" stopName="Zeros"/>
+  </ShuttlingGraph>
+</VoltageAdjust>
