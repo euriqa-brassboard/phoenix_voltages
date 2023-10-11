@@ -7,11 +7,11 @@ using MAT
 import Ipopt
 using JuMP
 
-const coeff_data, electrode_names = matopen(joinpath(@__DIR__, "../data/compensate_nozx_20220927.mat")) do mat
+const coeff_data, electrode_names = matopen(joinpath(@__DIR__, "../data/compensate_nozx_20231011.mat")) do mat
     return read(mat, "data"), read(mat, "electrode_names")
 end
 
-const outputdir = joinpath(@__DIR__, "../data/compensate_nozx_20220927")
+const outputdir = joinpath(@__DIR__, "../data/compensate_nozx_20231011")
 
 function solve_all(termidx)
     model = Model(Ipopt.Optimizer)
