@@ -163,6 +163,8 @@ const voltages_x1_2 = fit_term(Model(Ipopt.Optimizer), term_x1, coeff, 0.3,
                                (4, 3, 3, 1, 3, 1))
 const voltages_x2_2 = fit_term(Model(Ipopt.Optimizer), term_x2, coeff, 10.0,
                                (40, 3, 3, 2000, 300, 2000))
+const voltages_zz_2 = fit_term(Model(Ipopt.Optimizer), term_zz, coeff, 10.0,
+                               (40, 3, 3, 2000, 300, 2000))
 
 function get_nth_part(data, idx)
     return data[idx:6:end]
@@ -191,7 +193,14 @@ err_x2_2 = term_x2_flat .- true_x2_2
 @show extrema(err_x2_2)
 
 @show extrema(voltages_zz[2:end])
-@show extrema(term_zz_flat .- coeff * voltages_zz)
+true_zz = coeff * voltages_zz
+err_zz = term_zz_flat .- true_zz
+@show extrema(err_zz)
+
+@show extrema(voltages_zz_2[2:end])
+true_zz_2 = coeff * voltages_zz_2
+err_zz_2 = term_zz_flat .- true_zz_2
+@show extrema(err_zz_2)
 
 
 # for i in 1:6
@@ -203,11 +212,20 @@ err_x2_2 = term_x2_flat .- true_x2_2
 #     title(term_names[i])
 # end
 
+# for i in 1:6
+#     figure()
+#     plot(get_nth_part(term_x2_flat, i), label="X2 tgt")
+#     plot(get_nth_part(true_x2, i), label="X2")
+#     plot(get_nth_part(true_x2_2, i), label="X2_2")
+#     legend()
+#     title(term_names[i])
+# end
+
 for i in 1:6
     figure()
-    plot(get_nth_part(term_x2_flat, i), label="X2 tgt")
-    plot(get_nth_part(true_x2, i), label="X2")
-    plot(get_nth_part(true_x2_2, i), label="X2_2")
+    plot(get_nth_part(term_zz_flat, i), label="ZZ tgt")
+    plot(get_nth_part(true_zz, i), label="ZZ")
+    plot(get_nth_part(true_zz_2, i), label="ZZ_2")
     legend()
     title(term_names[i])
 end
