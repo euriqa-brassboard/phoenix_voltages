@@ -135,8 +135,7 @@ function fit_term(model::Model, target, coeff, maxv, yz_weight)
     end
     @objective(model, Min, maxerr)
     optimize!(model)
-    @show model
-    return @show value.(vars)
+    return value.(vars)
 end
 
 const term_x1 = generate_term(center_index, index_range, solution_stride,
