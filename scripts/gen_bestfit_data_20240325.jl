@@ -16,6 +16,7 @@ using Ipopt
 using NaCsPlot
 using PyPlot
 
+# Loading input data
 const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
     return Solutions.CenterTracker(read(mat, "zy_index"))
 end
@@ -25,10 +26,19 @@ const short_map = Solutions.load_short_map(
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const solution_stride = (solution.stride[3], solution.stride[2], solution.stride[1])
-const fits_cache = Solutions.compensate_fitter3(solution)
+const center_fit_cache = Solutions.compensate_fitter3(solution)
 
+# Output prefix
 const prefix = joinpath(@__DIR__, "../data/bestfit_20240325")
 
+# Basic input parameters
+const center_pos_um = 0.0
+const ele_select = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
+                                                          center_pos_um,
+                                                          min_num=30, min_dist=600)))
+const region_radius = (75, 3, 3)
+
+# Utility functions
 function get_rf_center(xpos_um)
     xidx = Solutions.x_axis_to_index(solution, xpos_um ./ 1000)
     return (xidx, get(centers, xidx)...)
@@ -42,40 +52,50 @@ function find_index_range(center, radius, sz)
     return lb:ub
 end
 
-const center_pos_um = 0.0
-
-const ele_select = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
-                                                          center_pos_um,
-                                                          min_num=30, min_dist=600)))
+# ROI
 const center_index = get_rf_center(center_pos_um)
-const region_radius = (75, 3, 3)
-
 const index_range = find_index_range.(center_index, region_radius,
                                       (solution.nx, solution.ny, solution.nz))
 
-function get_ele_data(data, index_range, ele, center_index, stride)
+struct ElectrodeData
+    slice_data::Vector{Float64}
+    center_data::Vector{Float64}
+end
+
+function ElectrodeData(fit_cache, ele, index_range, center_index)
+    solution = fit_cache.solution
+    data = solution.data
+    stride_ums_zyx = solution.stride .* 1000
     data = @view(data[index_range[3], index_range[2], index_range[1], ele])
     len = length(index_range[1])
     # 1, y, z, y^2, yz, z^2
-    res = Matrix{Float64}(undef, 6, len)
+    slice_data = Matrix{Float64}(undef, 6, len)
     fitter = Fitting.PolyFitter(4, 4)
-    scales = Solutions.l_unit_um ./ (stride .* 1000)
+    scales_zyx = Solutions.l_unit_um ./ stride_ums_zyx
     for i in 1:len
         data_zy = @view(data[:, :, i])
         cache_zy = Fitting.PolyFitCache(fitter, data_zy)
         fit_zy = get(cache_zy, (center_index[3], center_index[2]))
-        res[1, i] = fit_zy[0, 0] / Solutions.V_unit
-        res[2, i] = fit_zy[0, 1] / Solutions.V_unit * scales[2]
-        res[3, i] = fit_zy[1, 0] / Solutions.V_unit * scales[3]
-        res[4, i] = fit_zy[0, 2] / Solutions.V_unit * scales[2]^2 * 2
-        res[5, i] = fit_zy[1, 1] / Solutions.V_unit * scales[2] * scales[3]
-        res[6, i] = fit_zy[2, 0] / Solutions.V_unit * scales[3]^2 * 2
+        slice_data[1, i] = fit_zy[0, 0] / Solutions.V_unit
+        slice_data[2, i] = fit_zy[0, 1] / Solutions.V_unit * scales_zyx[2]
+        slice_data[3, i] = fit_zy[1, 0] / Solutions.V_unit * scales_zyx[1]
+        slice_data[4, i] = fit_zy[0, 2] / Solutions.V_unit * scales_zyx[2]^2 * 2
+        slice_data[5, i] = fit_zy[1, 1] / Solutions.V_unit * scales_zyx[2] * scales_zyx[1]
+        slice_data[6, i] = fit_zy[2, 0] / Solutions.V_unit * scales_zyx[1]^2 * 2
     end
-    return res
+
+    fit = get(fit_cache, ele, (center_index[3], center_index[2], center_index[1]))
+    terms = Solutions.get_compensate_terms2(fit, stride_ums_zyx)
+
+    dterm_scale = Solutions.V_unit_uV / Solutions.l_unit_um
+    return ElectrodeData(vec(slice_data),
+                         [terms.dx * dterm_scale, terms.dy * dterm_scale,
+                          terms.dz * dterm_scale, terms.xy, terms.yz, terms.zx,
+                          terms.z2, terms.x2, terms.x3, terms.x4])
 end
 
-const ele_data = [get_ele_data(solution.data, index_range, ele,
-                               center_index, solution_stride) for ele in ele_select]
+const ele_data = [ElectrodeData(center_fit_cache, ele, index_range, center_index)
+                  for ele in ele_select]
 
 const order_mapping = Dict((0, 0) => 1, (0, 1) => 2, (1, 0) => 3,
                            (0, 2) => 4, (1, 1) => 5, (2, 0) => 6)
@@ -103,7 +123,7 @@ const term_0_flat = vec(term_0)
 const coeff = Matrix{Float64}(undef, length(term_0_flat), length(ele_data) + 1)
 coeff[:, 1] .= term_0_flat
 for i in 1:length(ele_data)
-    coeff[:, 1 + i] .= vec(ele_data[i])
+    coeff[:, 1 + i] .= ele_data[i].slice_data
 end
 
 function fit_term(model::Model, target, coeff, maxv, yz_weight)
