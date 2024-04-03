@@ -25,7 +25,6 @@ const short_map = Solutions.load_short_map(
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const solution_stride = (solution.stride[3], solution.stride[2], solution.stride[1])
 const center_fit_cache = Solutions.compensate_fitter3(solution, sizes=(5, 5, 60))
 
 # Output prefix
