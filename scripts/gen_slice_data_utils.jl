@@ -28,6 +28,39 @@ function find_index_range(center, radius, sz)
     return lb:ub
 end
 
+struct SliceData
+    xpos::Vector{Float64}
+    C::Vector{Float64}
+    Y::Vector{Float64}
+    Z::Vector{Float64}
+    Y2::Vector{Float64}
+    YZ::Vector{Float64}
+    Z2::Vector{Float64}
+    function SliceData(xpos)
+        len = length(xpos)
+        return new(xpos, zeros(len), zeros(len), zeros(len),
+                   zeros(len), zeros(len), zeros(len))
+    end
+    Base.:*(data::SliceData, s::Number) =
+        new(data.xpos, data.C .* s, data.Y .* s, data.Z .* s,
+            data.Y2 .* s, data.YZ .* s, data.Z2 .* s)
+    Base.:*(s::Number, data::SliceData) = data * s
+    Base.:/(data::SliceData, s::Number) =
+        new(data.xpos, data.C ./ s, data.Y ./ s, data.Z ./ s,
+            data.Y2 ./ s, data.YZ ./ s, data.Z2 ./ s)
+    Base.:\(s::Number, data::SliceData) = data / s
+    Base.:+(data1::SliceData, data2::SliceData) =
+        new(data1.xpos, data1.C .+ data2.C, data1.Y .+ data2.Y, data1.Z .+ data2.Z,
+            data1.Y2 .+ data2.Y2, data1.YZ .+ data2.YZ, data1.Z2 .+ data2.Z2)
+    Base.:-(data1::SliceData, data2::SliceData) =
+        new(data1.xpos, data1.C .- data2.C, data1.Y .- data2.Y, data1.Z .- data2.Z,
+            data1.Y2 .- data2.Y2, data1.YZ .- data2.YZ, data1.Z2 .- data2.Z2)
+    Base.:+(data::SliceData) = data
+    Base.:-(data::SliceData) =
+        new(data.xpos, .-data.C, .-data.Y, .-data.Z,
+            .-data.Y2, .-data.YZ, .-data.Z2)
+end
+
 function accumulate_electrode_slice_data!(slice_data, solution, ele, pos_index, weight, xidx_range)
     data = solution.data
     stride_ums_zyx = solution.stride .* 1000
@@ -62,9 +95,7 @@ function gen_slice_data(solution, eles, voltages, pos_um;
     pos_index = get_rf_center(solution, pos_um)
     idx_range = idx_lo:idx_hi
     idx_len = length(idx_range)
-    slice_data = (xpos=Solutions.x_index_to_axis.(Ref(solution), idx_range) .* 1000,
-                  C=zeros(idx_len), Y=zeros(idx_len), Z=zeros(idx_len),
-                  Y2=zeros(idx_len), YZ=zeros(idx_len), Z2=zeros(idx_len))
+    slice_data = SliceData(Solutions.x_index_to_axis.(Ref(solution), idx_range) .* 1000)
     for (ele, voltage) in zip(eles, voltages)
         accumulate_electrode_slice_data!(slice_data, solution, ele,
                                          pos_index, voltage, idx_range)
@@ -142,21 +173,21 @@ function get_filter(filter_str)
     return Filter(filter_strs[1], filter_strs[2])
 end
 
-struct SliceData{T}
+struct Slice
     name::Union{String,Nothing}
     pos_um::Int
     eles::Vector{Int}
     voltages::Vector{Float64}
-    data::T
+    data::SliceData
 end
 
-struct SliceDataLoader
+struct SliceLoader
     solution::Potentials.Potential
 end
-SliceDataLoader(file::AbstractString) =
-    SliceDataLoader(Potentials.import_pillbox_64(file))
+SliceLoader(file::AbstractString) =
+    SliceLoader(Potentials.import_pillbox_64(file))
 
-function load(loader::SliceDataLoader, file;
+function load(loader::SliceLoader, file;
               filter=nothing, remove_dc=true, min_pos_um=nothing, max_pos_um=nothing)
     if !isa(filter, Filter)
         filter = get_filter(filter)
@@ -166,5 +197,5 @@ function load(loader::SliceDataLoader, file;
     slice_data = gen_slice_data(loader.solution, eles, voltages, pos_um;
                                 remove_dc=remove_dc, min_pos_um=min_pos_um,
                                 max_pos_um=max_pos_um)
-    return SliceData(name, pos_um, eles, voltages, slice_data)
+    return Slice(name, pos_um, eles, voltages, slice_data)
 end
