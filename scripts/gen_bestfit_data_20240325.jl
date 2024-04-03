@@ -26,7 +26,7 @@ const short_map = Solutions.load_short_map(
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const solution_stride = (solution.stride[3], solution.stride[2], solution.stride[1])
-const center_fit_cache = Solutions.compensate_fitter3(solution)
+const center_fit_cache = Solutions.compensate_fitter3(solution, sizes=(5, 5, 60))
 
 # Output prefix
 const prefix = joinpath(@__DIR__, "../data/bestfit_20240325")
@@ -36,7 +36,7 @@ const center_pos_um = 0.0
 const ele_select = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
                                                           center_pos_um,
                                                           min_num=30, min_dist=600)))
-const region_radius = (75, 3, 3)
+const region_radius = (66, 2, 2)
 
 # Utility functions
 function get_rf_center(xpos_um)
@@ -87,11 +87,19 @@ function ElectrodeData(fit_cache, ele, index_range, center_index)
     fit = get(fit_cache, ele, (center_index[3], center_index[2], center_index[1]))
     terms = Solutions.get_compensate_terms2(fit, stride_ums_zyx)
 
-    dterm_scale = Solutions.V_unit_uV / Solutions.l_unit_um
+    dterm_scale = Solutions.l_unit_um / Solutions.V_unit_uV
     return ElectrodeData(vec(slice_data),
                          [terms.dx * dterm_scale, terms.dy * dterm_scale,
                           terms.dz * dterm_scale, terms.xy, terms.yz, terms.zx,
-                          terms.z2, terms.x2, terms.x3, terms.x4])
+                          terms.z2, terms.x2, terms.x3, terms.x4,
+                          fit[0, 1, 2],
+                          fit[1, 0, 2],
+                          fit[0, 2, 1],
+                          fit[1, 1, 1],
+                          fit[2, 0, 1],
+                          fit[0, 2, 2],
+                          fit[1, 1, 2],
+                          fit[2, 0, 2]])
 end
 
 const slice_order_mapping = Dict((0, 0) => 1, (0, 1) => 2, (1, 0) => 3,
@@ -125,7 +133,7 @@ function AllTermsData(fit_cache, eles, index_range, center_index)
     ele_data = [ElectrodeData(fit_cache, ele, index_range, center_index)
                 for ele in eles]
 
-    ncenter_coeff = length(ele_data[1].center_data)
+    ncenter_coeff = @show length(ele_data[1].center_data)
     center_coeff = Matrix{Float64}(undef, ncenter_coeff, length(ele_data))
     for i in 1:length(ele_data)
         center_coeff[:, i] .= ele_data[i].center_data
@@ -183,19 +191,19 @@ function fit_term(model::Model, term_data::AllTermsData, term_idx, maxv, yz_weig
     x0 = @view(term_data.center_x0[:, term_idx])
     B = term_data.center_B
     nx, nt = size(B)
-    @show nx, nt
-    @variable(model, t[1:nt])
-    x = @expression(model, B * t .+ x0)
-    @constraint(model, -maxv .<= x .<= maxv)
+    if true
+        @variable(model, t[1:nt])
+        x = @expression(model, B * t .+ x0)
+        @constraint(model, -maxv .<= x .<= maxv)
+    else
+        x = x0
+    end
 
     nvars = nx + 1
     @variable(model, dc_offset)
     vars = [dc_offset; x]
     target = @view(term_data.slice_terms[:, term_idx])
-    @show size(term_data.slice_coeff)
-    @show size(vars)
-    @show size(term_data.slice_terms)
-    err = term_data.slice_coeff * vars .- target
+    err = @expression(model, term_data.slice_coeff * vars .- target)
     nvals = length(err)
     @variable(model, abserr[1:nvals])
     @constraint(model, .-abserr .<= err)
@@ -224,11 +232,11 @@ end
 const all_term_data =
     AllTermsData(center_fit_cache, ele_select, index_range, center_index)
 
-const voltages_x1_2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
-                               (4, 3, 3, 1, 3, 1))
-const voltages_zz_2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 10.0,
+const voltages_x1 = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
+                               (40, 3, 3, 1, 3, 1))
+const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 16.0,
                                (40, 3, 3, 2000, 300, 2000))
-const voltages_x2_2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 10.0,
+const voltages_x2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 25.0,
                                (40, 3, 3, 2000, 300, 2000))
 
 function get_nth_part(data, idx)
@@ -237,42 +245,36 @@ end
 
 const term_names = ["1", "y", "z", "y2", "yz", "z2"]
 
-# @show extrema(voltages_x1[2:end])
-# true_x1 = coeff * voltages_x1
-# err_x1 = term_x1_flat .- true_x1
-# @show extrema(err_x1)
-
-@show extrema(voltages_x1_2[2:end])
+@show extrema(voltages_x1[2:end])
 term_x1_flat = all_term_data.slice_terms[:, 1]
-true_x1_2 = all_term_data.slice_coeff * voltages_x1_2
-err_x1_2 = term_x1_flat .- true_x1_2
-@show extrema(err_x1_2)
+true_x1 = all_term_data.slice_coeff * voltages_x1
+err_x1 = term_x1_flat .- true_x1
+@show extrema(err_x1)
 
-# @show extrema(voltages_x2[2:end])
-# true_x2 = coeff * voltages_x2
-# err_x2 = term_x2_flat .- true_x2
-# @show extrema(err_x2)
+@show extrema(voltages_z2[2:end])
+term_z2_flat = all_term_data.slice_terms[:, 7]
+true_z2 = all_term_data.slice_coeff * voltages_z2
+err_z2 = term_z2_flat .- true_z2
+@show extrema(err_z2)
 
-@show extrema(voltages_x2_2[2:end])
+@show extrema(voltages_x2[2:end])
 term_x2_flat = all_term_data.slice_terms[:, 8]
-true_x2_2 = all_term_data.slice_coeff * voltages_x2_2
-err_x2_2 = term_x2_flat .- true_x2_2
-@show extrema(err_x2_2)
-
-# @show extrema(voltages_zz[2:end])
-# true_zz = coeff * voltages_zz
-# err_zz = term_zz_flat .- true_zz
-# @show extrema(err_zz)
-
-# @show extrema(voltages_zz_2[2:end])
-# true_zz_2 = coeff * voltages_zz_2
-# err_zz_2 = term_zz_flat .- true_zz_2
-# @show extrema(err_zz_2)
+true_x2 = all_term_data.slice_coeff * voltages_x2
+err_x2 = term_x2_flat .- true_x2
+@show extrema(err_x2)
 
 # for i in 1:6
 #     figure()
 #     plot(get_nth_part(term_x1_flat, i), label="X1 tgt")
-#     plot(get_nth_part(true_x1_2, i), label="X1_2")
+#     plot(get_nth_part(true_x1, i), label="X1")
+#     legend()
+#     title(term_names[i])
+# end
+
+# for i in 1:6
+#     figure()
+#     plot(get_nth_part(term_z2_flat, i), label="Z2 tgt")
+#     plot(get_nth_part(true_z2, i), label="Z2")
 #     legend()
 #     title(term_names[i])
 # end
@@ -280,26 +282,15 @@ err_x2_2 = term_x2_flat .- true_x2_2
 for i in 1:6
     figure()
     plot(get_nth_part(term_x2_flat, i), label="X2 tgt")
-    plot(get_nth_part(true_x2_2, i), label="X2_2")
+    plot(get_nth_part(true_x2, i), label="X2")
     legend()
     title(term_names[i])
 end
 
 # for i in 1:6
 #     figure()
-#     plot(get_nth_part(term_zz_flat, i), label="ZZ tgt")
-#     plot(get_nth_part(true_zz, i), label="ZZ")
-#     plot(get_nth_part(true_zz_2, i), label="ZZ_2")
-#     legend()
-#     title(term_names[i])
-# end
-
-# for i in 1:6
-#     figure()
 #     plot(get_nth_part(err_x1, i), label="X1")
-#     plot(get_nth_part(err_x1_2, i), label="X1_2")
 #     plot(get_nth_part(err_x2, i), label="X2")
-#     plot(get_nth_part(err_x2_2, i), label="X2_2")
 #     legend()
 #     title(term_names[i])
 # end
