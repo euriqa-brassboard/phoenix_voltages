@@ -6,7 +6,8 @@ using NaCsPlot
 using PyPlot
 
 const loader = SliceDataLoader(ARGS[1])
-slice_data = load(loader, ARGS[2], filter=get(ARGS, 3, nothing))
+slice_data = load(loader, ARGS[2], filter=get(ARGS, 3, nothing),
+                  min_pos_um=-70, max_pos_um=70)
 
 figure(figsize=[6.4 * 3, 4.8 * 2])
 subplot(2, 3, 1)

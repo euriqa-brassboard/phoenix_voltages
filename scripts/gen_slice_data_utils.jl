@@ -34,11 +34,11 @@ function accumulate_electrode_slice_data!(slice_data, solution, ele, pos_index, 
 
     index_range_y = find_index_range(pos_index[2], 2, solution.ny)
     index_range_z = find_index_range(pos_index[3], 2, solution.nz)
-    data = @view(data[index_range_z, index_range_y, :, ele])
+    data = @view(data[index_range_z, index_range_y, xidx_range, ele])
     fitter = Fitting.PolyFitter(4, 4)
     scales_zyx = Solutions.l_unit_um ./ stride_ums_zyx
     weight = weight / Solutions.V_unit
-    for i in xidx_range
+    for i in 1:length(xidx_range)
         data_zy = @view(data[:, :, i])
         cache_zy = Fitting.PolyFitCache(fitter, data_zy)
         fit_zy = get(cache_zy, (pos_index[3], pos_index[2]))
@@ -52,18 +52,26 @@ function accumulate_electrode_slice_data!(slice_data, solution, ele, pos_index, 
     end
 end
 
-function gen_slice_data(solution, eles, voltages, pos_um; remove_dc=true)
-    pos_index = get_rf_center(solution, pos_um)
+function gen_slice_data(solution, eles, voltages, pos_um;
+                        remove_dc=true, min_pos_um=nothing, max_pos_um=nothing)
     len = solution.nx
-    slice_data = (xpos=Solutions.x_index_to_axis.(Ref(solution), 1:len) .* 1000,
-                  C=zeros(len), Y=zeros(len), Z=zeros(len),
-                  Y2=zeros(len), YZ=zeros(len), Z2=zeros(len))
+    idx_lo = (min_pos_um == nothing ? 1 :
+        max(1, round(Int, Solutions.x_axis_to_index(solution, min_pos_um / 1000))))
+    idx_hi = (max_pos_um == nothing ? len :
+        min(len, round(Int, Solutions.x_axis_to_index(solution, max_pos_um / 1000))))
+    pos_index = get_rf_center(solution, pos_um)
+    idx_range = idx_lo:idx_hi
+    idx_len = length(idx_range)
+    slice_data = (xpos=Solutions.x_index_to_axis.(Ref(solution), idx_range) .* 1000,
+                  C=zeros(idx_len), Y=zeros(idx_len), Z=zeros(idx_len),
+                  Y2=zeros(idx_len), YZ=zeros(idx_len), Z2=zeros(idx_len))
     for (ele, voltage) in zip(eles, voltages)
         accumulate_electrode_slice_data!(slice_data, solution, ele,
-                                         pos_index, voltage, 1:len)
+                                         pos_index, voltage, idx_range)
     end
     if remove_dc
-        slice_data.C .-= slice_data.C[round(Int, pos_index[1])]
+        idx_center_x = round(Int, pos_index[1])
+        slice_data.C .-= slice_data.C[idx_center_x - idx_lo + 1]
     end
     return slice_data
 end
@@ -148,13 +156,15 @@ end
 SliceDataLoader(file::AbstractString) =
     SliceDataLoader(Potentials.import_pillbox_64(file))
 
-function load(loader::SliceDataLoader, file; filter=nothing, remove_dc=true)
+function load(loader::SliceDataLoader, file;
+              filter=nothing, remove_dc=true, min_pos_um=nothing, max_pos_um=nothing)
     if !isa(filter, Filter)
         filter = get_filter(filter)
     end
     name, pos_um, eles, voltages =
         load_solution_file(file, loader.solution, filter=filter)
     slice_data = gen_slice_data(loader.solution, eles, voltages, pos_um;
-                                remove_dc=remove_dc)
+                                remove_dc=remove_dc, min_pos_um=min_pos_um,
+                                max_pos_um=max_pos_um)
     return SliceData(name, pos_um, eles, voltages, slice_data)
 end
