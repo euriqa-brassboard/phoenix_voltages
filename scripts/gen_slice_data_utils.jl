@@ -85,13 +85,18 @@ function accumulate_electrode_slice_data!(slice_data, solution, ele, pos_index, 
     end
 end
 
-function gen_slice_data(solution, eles, voltages, pos_um;
-                        remove_dc=true, min_pos_um=nothing, max_pos_um=nothing)
+function _get_index_range(solution, min_pos_um, max_pos_um)
     len = solution.nx
     idx_lo = (min_pos_um == nothing ? 1 :
         max(1, round(Int, Solutions.x_axis_to_index(solution, min_pos_um / 1000))))
     idx_hi = (max_pos_um == nothing ? len :
         min(len, round(Int, Solutions.x_axis_to_index(solution, max_pos_um / 1000))))
+    return idx_lo, idx_hi
+end
+
+function gen_slice_data(solution, eles, voltages, pos_um;
+                        remove_dc=true, min_pos_um=nothing, max_pos_um=nothing)
+    idx_lo, idx_hi = _get_index_range(solution, min_pos_um, max_pos_um)
     pos_index = get_rf_center(solution, pos_um)
     idx_range = idx_lo:idx_hi
     idx_len = length(idx_range)
@@ -198,4 +203,43 @@ function load(loader::SliceLoader, file;
                                 remove_dc=remove_dc, min_pos_um=min_pos_um,
                                 max_pos_um=max_pos_um)
     return Slice(name, pos_um, eles, voltages, slice_data)
+end
+
+function ideal_term(loader::SliceLoader, pos_um, order;
+                    min_pos_um=nothing, max_pos_um=nothing)
+    solution = loader.solution
+    @assert all(0 .<= order)
+    @assert order[3] + order[2] <= 2
+    idx_lo, idx_hi = _get_index_range(solution, min_pos_um, max_pos_um)
+    idx_range = idx_lo:idx_hi
+    slice_data = SliceData(Solutions.x_index_to_axis.(Ref(solution), idx_range) .* 1000)
+    if order[3] == 0
+        if order[2] == 0
+            data = slice_data.C
+        elseif order[2] == 1
+            data = slice_data.Y
+        else
+            @assert order[2] == 2
+            data = slice_data.Y2
+        end
+    elseif order[3] == 1
+        if order[2] == 0
+            data = slice_data.Z
+        else
+            @assert order[2] == 1
+            data = slice_data.YZ
+        end
+    else
+        @assert order[3] == 2
+        @assert order[2] == 0
+        data = slice_data.Z2
+    end
+    xcenter = Solutions.x_axis_to_index(solution, pos_um ./ 1000)
+    xscale = solution.stride[3] .* 1000 / Solutions.l_unit_um
+    coeff = 1 / factorial(order[1])
+    for i in 1:length(idx_range)
+        xpos = idx_range[i] - xcenter
+        data[i] = (xpos * xscale)^order[1] * coeff
+    end
+    return slice_data
 end
