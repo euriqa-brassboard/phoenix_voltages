@@ -86,10 +86,8 @@ function ElectrodeData(fit_cache, ele, index_range, center_index)
     fit = get(fit_cache, ele, (center_index[3], center_index[2], center_index[1]))
     terms = Solutions.get_compensate_terms2(fit, stride_ums_zyx)
 
-    dterm_scale = Solutions.l_unit_um / Solutions.V_unit_uV
     return ElectrodeData(vec(slice_data),
-                         [terms.dx * dterm_scale, terms.dy * dterm_scale,
-                          terms.dz * dterm_scale, terms.xy, terms.yz, terms.zx,
+                         [terms.dx, terms.dy, terms.dz, terms.xy, terms.yz, terms.zx,
                           terms.z2, terms.x2, terms.x3, terms.x4,
                           fit[0, 1, 2],
                           fit[1, 0, 2],
@@ -167,9 +165,9 @@ function AllTermsData(fit_cache, eles, index_range, center_index)
     term_x1z2_raw = generate_term(center_index, index_range, stride_x_um, (1, 0, 2))
     term_x2z2_raw = generate_term(center_index, index_range, stride_x_um, (2, 0, 2))
 
-    term_x1 = term_x1_raw
-    term_y1 = term_y1_raw
-    term_z1 = term_z1_raw
+    term_dx = term_x1_raw .* (Solutions.l_unit_um / Solutions.V_unit_uV)
+    term_dy = term_y1_raw .* (Solutions.l_unit_um / Solutions.V_unit_uV)
+    term_dz = term_z1_raw .* (Solutions.l_unit_um / Solutions.V_unit_uV)
 
     term_xy = term_x1y1_raw
     term_yz = term_y1z1_raw
@@ -180,7 +178,7 @@ function AllTermsData(fit_cache, eles, index_range, center_index)
     term_x3 = term_x3_raw .- (term_x1y2_raw .+ term_x1z2_raw) ./ 2
     term_x4 = term_x4_raw .- (term_x2y2_raw .+ term_x2z2_raw) ./ 2
 
-    slice_terms = hcat(term_x1, term_y1, term_z1,
+    slice_terms = hcat(term_dx, term_dy, term_dz,
                        term_xy, term_yz, term_zx, term_z2, term_x2,
                        term_x3, term_x4)
     return AllTermsData(ele_data, center_x0, center_B, slice_coeff, slice_terms)
@@ -231,7 +229,7 @@ end
 const all_term_data =
     AllTermsData(center_fit_cache, ele_select, index_range, center_index)
 
-const voltages_x1 = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
+const voltages_dx = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
                                (40, 3, 3, 1, 3, 1))
 const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 16.0,
                                (40, 3, 3, 2000, 300, 2000))
@@ -244,11 +242,11 @@ end
 
 const term_names = ["1", "y", "z", "y2", "yz", "z2"]
 
-@show extrema(voltages_x1[2:end])
-term_x1_flat = all_term_data.slice_terms[:, 1]
-true_x1 = all_term_data.slice_coeff * voltages_x1
-err_x1 = term_x1_flat .- true_x1
-@show extrema(err_x1)
+@show extrema(voltages_dx[2:end])
+term_dx_flat = all_term_data.slice_terms[:, 1]
+true_dx = all_term_data.slice_coeff * voltages_dx
+err_dx = term_dx_flat .- true_dx
+@show extrema(err_dx)
 
 @show extrema(voltages_z2[2:end])
 term_z2_flat = all_term_data.slice_terms[:, 7]
@@ -262,36 +260,34 @@ true_x2 = all_term_data.slice_coeff * voltages_x2
 err_x2 = term_x2_flat .- true_x2
 @show extrema(err_x2)
 
-# for i in 1:6
-#     figure()
-#     plot(get_nth_part(term_x1_flat, i), label="X1 tgt")
-#     plot(get_nth_part(true_x1, i), label="X1")
-#     legend()
-#     title(term_names[i])
-# end
-
-# for i in 1:6
-#     figure()
-#     plot(get_nth_part(term_z2_flat, i), label="Z2 tgt")
-#     plot(get_nth_part(true_z2, i), label="Z2")
-#     legend()
-#     title(term_names[i])
-# end
-
+figure(figsize=[6.4 * 3, 4.8 * 2])
 for i in 1:6
-    figure()
-    plot(get_nth_part(term_x2_flat, i), label="X2 tgt")
-    plot(get_nth_part(true_x2, i), label="X2")
-    legend()
+    subplot(2, 3, i)
+    plot(get_nth_part(term_dx_flat, i), ls="--")
+    plot(get_nth_part(true_dx, i))
+    grid()
     title(term_names[i])
 end
+suptitle("dx")
 
-# for i in 1:6
-#     figure()
-#     plot(get_nth_part(err_x1, i), label="X1")
-#     plot(get_nth_part(err_x2, i), label="X2")
-#     legend()
-#     title(term_names[i])
-# end
+figure(figsize=[6.4 * 3, 4.8 * 2])
+for i in 1:6
+    subplot(2, 3, i)
+    plot(get_nth_part(term_z2_flat, i), ls="--")
+    plot(get_nth_part(true_z2, i))
+    grid()
+    title(term_names[i])
+end
+suptitle("z2")
+
+figure(figsize=[6.4 * 3, 4.8 * 2])
+for i in 1:6
+    subplot(2, 3, i)
+    plot(get_nth_part(term_x2_flat, i), ls="--")
+    plot(get_nth_part(true_x2, i))
+    grid()
+    title(term_names[i])
+end
+suptitle("x2")
 
 NaCsPlot.maybe_show()
