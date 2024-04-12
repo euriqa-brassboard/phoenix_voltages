@@ -89,14 +89,15 @@ function ElectrodeData(fit_cache, ele, index_range, center_index)
     return ElectrodeData(vec(slice_data),
                          [terms.dx, terms.dy, terms.dz, terms.xy, terms.yz, terms.zx,
                           terms.z2, terms.x2, terms.x3, terms.x4,
-                          fit[0, 1, 2],
-                          fit[1, 0, 2],
-                          fit[0, 2, 1],
-                          fit[1, 1, 1],
-                          fit[2, 0, 1],
-                          fit[0, 2, 2],
-                          fit[1, 1, 2],
-                          fit[2, 0, 2]])
+                          fit[0, 1, 2], # x^2y
+                          # fit[1, 0, 2], # x^2z
+                          fit[0, 2, 1], # xy^2
+                          fit[1, 1, 1], # xyz
+                          fit[2, 0, 1], # xz^2
+                          fit[0, 2, 2], # x^2y^2
+                          fit[1, 1, 2], # x^2yz
+                          fit[2, 0, 2], # x^2z^2
+                          ])
 end
 
 const slice_order_mapping = Dict((0, 0) => 1, (0, 1) => 2, (1, 0) => 3,
@@ -231,9 +232,15 @@ const all_term_data =
 
 const voltages_dx = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
                                (40, 3, 3, 1, 3, 1))
-const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 16.0,
+const voltages_dy = fit_term(Model(Ipopt.Optimizer), all_term_data, 2, 0.3,
+                               (10, 6, 3, 1, 3, 1))
+const voltages_dz = fit_term(Model(Ipopt.Optimizer), all_term_data, 3, 0.3,
+                               (10, 3, 6, 1, 3, 1))
+const voltages_xy = fit_term(Model(Ipopt.Optimizer), all_term_data, 4, 20.0,
+                               (400, 300, 6, 20, 30, 20))
+const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 18.0,
                                (40, 3, 3, 2000, 300, 2000))
-const voltages_x2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 25.0,
+const voltages_x2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 15.0,
                                (40, 3, 3, 2000, 300, 2000))
 
 function get_nth_part(data, idx)
@@ -247,6 +254,24 @@ term_dx_flat = all_term_data.slice_terms[:, 1]
 true_dx = all_term_data.slice_coeff * voltages_dx
 err_dx = term_dx_flat .- true_dx
 @show extrema(err_dx)
+
+@show extrema(voltages_dy[2:end])
+term_dy_flat = all_term_data.slice_terms[:, 2]
+true_dy = all_term_data.slice_coeff * voltages_dy
+err_dy = term_dy_flat .- true_dy
+@show extrema(err_dy)
+
+@show extrema(voltages_dz[2:end])
+term_dz_flat = all_term_data.slice_terms[:, 3]
+true_dz = all_term_data.slice_coeff * voltages_dz
+err_dz = term_dz_flat .- true_dz
+@show extrema(err_dz)
+
+@show extrema(voltages_xy[2:end])
+term_xy_flat = all_term_data.slice_terms[:, 4]
+true_xy = all_term_data.slice_coeff * voltages_xy
+err_xy = term_xy_flat .- true_xy
+@show extrema(err_xy)
 
 @show extrema(voltages_z2[2:end])
 term_z2_flat = all_term_data.slice_terms[:, 7]
@@ -269,6 +294,36 @@ for i in 1:6
     title(term_names[i])
 end
 suptitle("dx")
+
+figure(figsize=[6.4 * 3, 4.8 * 2])
+for i in 1:6
+    subplot(2, 3, i)
+    plot(get_nth_part(term_dy_flat, i), ls="--")
+    plot(get_nth_part(true_dy, i))
+    grid()
+    title(term_names[i])
+end
+suptitle("dy")
+
+figure(figsize=[6.4 * 3, 4.8 * 2])
+for i in 1:6
+    subplot(2, 3, i)
+    plot(get_nth_part(term_dz_flat, i), ls="--")
+    plot(get_nth_part(true_dz, i))
+    grid()
+    title(term_names[i])
+end
+suptitle("dz")
+
+figure(figsize=[6.4 * 3, 4.8 * 2])
+for i in 1:6
+    subplot(2, 3, i)
+    plot(get_nth_part(term_xy_flat, i), ls="--")
+    plot(get_nth_part(true_xy, i))
+    grid()
+    title(term_names[i])
+end
+suptitle("xy")
 
 figure(figsize=[6.4 * 3, 4.8 * 2])
 for i in 1:6
