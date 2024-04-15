@@ -9,6 +9,8 @@ const loader = SliceLoader(ARGS[1])
 slice_data = load(loader, ARGS[2], filter=get(ARGS, 3, nothing),
                   min_pos_um=-70, max_pos_um=70)
 
+@show extrema(slice_data.voltages)
+
 term_x1_raw = ideal_term(loader, slice_data.pos_um, (1, 0, 0),
                          min_pos_um=-70, max_pos_um=70)
 term_x2_raw = ideal_term(loader, slice_data.pos_um, (2, 0, 0),
