@@ -35,7 +35,7 @@ const center_pos_um = 0.0
 const ele_select = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
                                                           center_pos_um,
                                                           min_num=30, min_dist=600)))
-const region_radius = (66, 2, 2)
+const xregion_radius = 66
 
 # Utility functions
 function get_rf_center(xpos_um)
@@ -53,23 +53,22 @@ end
 
 # ROI
 const center_index = get_rf_center(center_pos_um)
-const index_range = find_index_range.(center_index, region_radius,
-                                      (solution.nx, solution.ny, solution.nz))
+const xindex_range = find_index_range(center_index[1], xregion_radius, solution.nx)
 
 struct ElectrodeData
     slice_data::Vector{Float64}
     center_data::Vector{Float64}
 end
 
-function ElectrodeData(fit_cache, ele, index_range, center_index)
+function ElectrodeData(fit_cache, ele, xindex_range, center_index)
     solution = fit_cache.solution
     data = solution.data
     stride_ums_zyx = solution.stride .* 1000
-    data = @view(data[index_range[3], index_range[2], index_range[1], ele])
-    len = length(index_range[1])
+    data = @view(data[:, :, xindex_range, ele])
+    len = length(xindex_range)
     # 1, y, z, y^2, yz, z^2
     slice_data = Matrix{Float64}(undef, 6, len)
-    fitter = Fitting.PolyFitter(4, 4)
+    fitter = Fitting.PolyFitter(4, 4, sizes=(7, 7))
     scales_zyx = Solutions.l_unit_um ./ stride_ums_zyx
     for i in 1:len
         data_zy = @view(data[:, :, i])
@@ -103,17 +102,17 @@ end
 const slice_order_mapping = Dict((0, 0) => 1, (0, 1) => 2, (1, 0) => 3,
                                  (0, 2) => 4, (1, 1) => 5, (2, 0) => 6)
 
-function generate_term(center_index, index_range, stride_x_um, order)
+function generate_term(center_index, xindex_range, stride_x_um, order)
     @assert all(0 .<= order)
     @assert order[3] + order[2] <= 2
     param_idx = slice_order_mapping[(order[3], order[2])]
-    len = length(index_range[1])
+    len = length(xindex_range)
     res = zeros(6, len)
     xcenter = center_index[1]
     xscale = stride_x_um / Solutions.l_unit_um
     coeff = 1 / factorial(order[1])
     for i in 1:len
-        xpos = index_range[1][i] - xcenter
+        xpos = xindex_range[i] - xcenter
         res[param_idx, i] = (xpos * xscale)^order[1] * coeff
     end
     return vec(res)
@@ -127,8 +126,8 @@ struct AllTermsData
     slice_terms::Matrix{Float64}
 end
 
-function AllTermsData(fit_cache, eles, index_range, center_index)
-    ele_data = [ElectrodeData(fit_cache, ele, index_range, center_index)
+function AllTermsData(fit_cache, eles, xindex_range, center_index)
+    ele_data = [ElectrodeData(fit_cache, ele, xindex_range, center_index)
                 for ele in eles]
 
     ncenter_coeff = @show length(ele_data[1].center_data)
@@ -139,32 +138,34 @@ function AllTermsData(fit_cache, eles, index_range, center_index)
     center_x0 = center_coeff \ Matrix(I, ncenter_coeff, ncenter_coeff)
     center_B = qr(center_coeff').Q[:, (ncenter_coeff + 1):end]
 
+    # center_x0[:, 4] = center_x0[:, 4] .- 70 * center_x0[:, 1] # ?????
+
     stride_x_um = solution.stride[3] * 1000
-    term_0 = generate_term(center_index, index_range, stride_x_um, (0, 0, 0))
+    term_0 = generate_term(center_index, xindex_range, stride_x_um, (0, 0, 0))
     slice_coeff = Matrix{Float64}(undef, length(term_0), length(ele_data) + 1)
     slice_coeff[:, 1] .= term_0
     for i in 1:length(ele_data)
         slice_coeff[:, 1 + i] .= ele_data[i].slice_data
     end
-    term_x1_raw = generate_term(center_index, index_range, stride_x_um, (1, 0, 0))
-    term_x2_raw = generate_term(center_index, index_range, stride_x_um, (2, 0, 0))
-    term_x3_raw = generate_term(center_index, index_range, stride_x_um, (3, 0, 0))
-    term_x4_raw = generate_term(center_index, index_range, stride_x_um, (4, 0, 0))
+    term_x1_raw = generate_term(center_index, xindex_range, stride_x_um, (1, 0, 0))
+    term_x2_raw = generate_term(center_index, xindex_range, stride_x_um, (2, 0, 0))
+    term_x3_raw = generate_term(center_index, xindex_range, stride_x_um, (3, 0, 0))
+    term_x4_raw = generate_term(center_index, xindex_range, stride_x_um, (4, 0, 0))
 
-    term_y1_raw = generate_term(center_index, index_range, stride_x_um, (0, 1, 0))
-    term_y2_raw = generate_term(center_index, index_range, stride_x_um, (0, 2, 0))
+    term_y1_raw = generate_term(center_index, xindex_range, stride_x_um, (0, 1, 0))
+    term_y2_raw = generate_term(center_index, xindex_range, stride_x_um, (0, 2, 0))
 
-    term_z1_raw = generate_term(center_index, index_range, stride_x_um, (0, 0, 1))
-    term_z2_raw = generate_term(center_index, index_range, stride_x_um, (0, 0, 2))
+    term_z1_raw = generate_term(center_index, xindex_range, stride_x_um, (0, 0, 1))
+    term_z2_raw = generate_term(center_index, xindex_range, stride_x_um, (0, 0, 2))
 
-    term_x1y1_raw = generate_term(center_index, index_range, stride_x_um, (1, 1, 0))
-    term_y1z1_raw = generate_term(center_index, index_range, stride_x_um, (0, 1, 1))
-    term_x1z1_raw = generate_term(center_index, index_range, stride_x_um, (1, 0, 1))
+    term_x1y1_raw = generate_term(center_index, xindex_range, stride_x_um, (1, 1, 0))
+    term_y1z1_raw = generate_term(center_index, xindex_range, stride_x_um, (0, 1, 1))
+    term_x1z1_raw = generate_term(center_index, xindex_range, stride_x_um, (1, 0, 1))
 
-    term_x1y2_raw = generate_term(center_index, index_range, stride_x_um, (1, 2, 0))
-    term_x2y2_raw = generate_term(center_index, index_range, stride_x_um, (2, 2, 0))
-    term_x1z2_raw = generate_term(center_index, index_range, stride_x_um, (1, 0, 2))
-    term_x2z2_raw = generate_term(center_index, index_range, stride_x_um, (2, 0, 2))
+    term_x1y2_raw = generate_term(center_index, xindex_range, stride_x_um, (1, 2, 0))
+    term_x2y2_raw = generate_term(center_index, xindex_range, stride_x_um, (2, 2, 0))
+    term_x1z2_raw = generate_term(center_index, xindex_range, stride_x_um, (1, 0, 2))
+    term_x2z2_raw = generate_term(center_index, xindex_range, stride_x_um, (2, 0, 2))
 
     term_dx = term_x1_raw .* (Solutions.l_unit_um / Solutions.V_unit_uV)
     term_dy = term_y1_raw .* (Solutions.l_unit_um / Solutions.V_unit_uV)
@@ -228,7 +229,7 @@ function fit_term(model::Model, term_data::AllTermsData, term_idx, maxv, yz_weig
 end
 
 const all_term_data =
-    AllTermsData(center_fit_cache, ele_select, index_range, center_index)
+    AllTermsData(center_fit_cache, ele_select, xindex_range, center_index)
 
 const voltages_dx = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
                                (40, 3, 3, 1, 3, 1))
@@ -240,7 +241,7 @@ const voltages_xy = fit_term(Model(Ipopt.Optimizer), all_term_data, 4, 20.0,
                                (400, 300, 6, 20, 30, 20))
 const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 18.0,
                                (40, 3, 3, 2000, 300, 2000))
-const voltages_x2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 15.0,
+const voltages_x2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 13.0,
                                (40, 3, 3, 2000, 300, 2000))
 
 function get_nth_part(data, idx)
