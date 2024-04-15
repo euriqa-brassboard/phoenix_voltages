@@ -65,10 +65,8 @@ function accumulate_electrode_slice_data!(slice_data, solution, ele, pos_index, 
     data = solution.data
     stride_ums_zyx = solution.stride .* 1000
 
-    index_range_y = find_index_range(pos_index[2], 2, solution.ny)
-    index_range_z = find_index_range(pos_index[3], 2, solution.nz)
-    data = @view(data[index_range_z, index_range_y, xidx_range, ele])
-    fitter = Fitting.PolyFitter(4, 4)
+    data = @view(data[:, :, xidx_range, ele])
+    fitter = Fitting.PolyFitter(4, 4, sizes=(7, 7))
     scales_zyx = Solutions.l_unit_um ./ stride_ums_zyx
     weight = weight / Solutions.V_unit
     for i in 1:length(xidx_range)
