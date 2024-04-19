@@ -10,12 +10,6 @@ using PhoenixVoltages.Mappings
 using MAT
 using LinearAlgebra
 
-using JuMP
-using Ipopt
-
-using NaCsPlot
-using PyPlot
-
 # Loading input data
 const centers = matopen(joinpath(@__DIR__, "../data/rf_center.mat")) do mat
     return Solutions.CenterTracker(read(mat, "zy_index"))
