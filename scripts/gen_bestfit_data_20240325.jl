@@ -27,16 +27,6 @@ const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
 const center_fit_cache = Solutions.compensate_fitter3(solution)
 
-# Output prefix
-const prefix = joinpath(@__DIR__, "../data/bestfit_20240325")
-
-# Basic input parameters
-const center_pos_um = 0.0
-const ele_select = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
-                                                          center_pos_um,
-                                                          min_num=30, min_dist=600)))
-const xregion_radius = 65
-
 # Utility functions
 function get_rf_center(xpos_um)
     xidx = Solutions.x_axis_to_index(solution, xpos_um ./ 1000)
@@ -50,10 +40,6 @@ function find_index_range(center, radius, sz)
     ub = min(sz, ub)
     return lb:ub
 end
-
-# ROI
-const center_index = get_rf_center(center_pos_um)
-const xindex_range = find_index_range(center_index[1], xregion_radius, solution.nx)
 
 struct ElectrodeData
     slice_data::Vector{Float64}
@@ -95,7 +81,6 @@ end
 
 const slice_order_mapping = Dict((0, 0) => 1, (0, 1) => 2, (1, 0) => 3,
                                  (0, 2) => 4, (1, 1) => 5, (2, 0) => 6)
-
 function generate_term(center_index, xindex_range, stride_x_um, order)
     @assert all(0 .<= order)
     @assert order[3] + order[2] <= 2
@@ -120,7 +105,15 @@ struct AllTermsData
     slice_terms::Matrix{Float64}
 end
 
-function AllTermsData(fit_cache, eles, xindex_range, center_index)
+const xregion_radius = 65
+function AllTermsData(fit_cache, center_pos_um)
+    solution = fit_cache.solution
+    center_index = get_rf_center(center_pos_um)
+    xindex_range = find_index_range(center_index[1], xregion_radius, solution.nx)
+    eles = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
+                                                  center_pos_um,
+                                                  min_num=30, min_dist=600)))
+
     ele_data = [ElectrodeData(fit_cache, ele, xindex_range, center_index)
                 for ele in eles]
 
@@ -226,8 +219,10 @@ function fit_term(model::Model, term_data::AllTermsData, term_idx, maxv, yz_weig
     return value.(vars)
 end
 
-const all_term_data =
-    AllTermsData(center_fit_cache, ele_select, xindex_range, center_index)
+# Basic input parameters
+const center_pos_um = 0.0
+
+const all_term_data = AllTermsData(center_fit_cache, center_pos_um)
 
 const voltages_dx = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.003,
                                (10, 3, 3, 1, 3, 1))
