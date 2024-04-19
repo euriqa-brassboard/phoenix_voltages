@@ -25,7 +25,7 @@ const short_map = Solutions.load_short_map(
 
 const solution_file = ARGS[1]
 const solution = Potentials.import_pillbox_64(solution_file, aliases=short_map)
-const center_fit_cache = Solutions.compensate_fitter3(solution, sizes=(5, 5, 60))
+const center_fit_cache = Solutions.compensate_fitter3(solution)
 
 # Output prefix
 const prefix = joinpath(@__DIR__, "../data/bestfit_20240325")
@@ -35,7 +35,7 @@ const center_pos_um = 0.0
 const ele_select = sort!(collect(Mappings.find_electrodes(solution.electrode_index,
                                                           center_pos_um,
                                                           min_num=30, min_dist=600)))
-const xregion_radius = 66
+const xregion_radius = 65
 
 # Utility functions
 function get_rf_center(xpos_um)
@@ -90,12 +90,12 @@ function ElectrodeData(fit_cache, ele, xindex_range, center_index)
                           terms.z2, terms.x2, terms.x3, terms.x4,
                           fit[0, 1, 2], # x^2y
                           fit[1, 0, 2], # x^2z
-                          fit[0, 2, 1], # xy^2
-                          fit[1, 1, 1], # xyz
-                          fit[2, 0, 1], # xz^2
-                          fit[0, 2, 2], # x^2y^2
-                          fit[1, 1, 2], # x^2yz
-                          fit[2, 0, 2], # x^2z^2
+                          # fit[0, 2, 1], # xy^2
+                          # fit[1, 1, 1], # xyz
+                          # fit[2, 0, 1], # xz^2
+                          # fit[0, 2, 2], # x^2y^2
+                          # fit[1, 1, 2], # x^2yz
+                          # fit[2, 0, 2], # x^2z^2
                           # fit[0, 0, 5], # x^5
                           ])
 end
@@ -138,8 +138,6 @@ function AllTermsData(fit_cache, eles, xindex_range, center_index)
     end
     center_x0 = center_coeff \ Matrix(I, ncenter_coeff, ncenter_coeff)
     center_B = qr(center_coeff').Q[:, (ncenter_coeff + 1):end]
-
-    # center_x0[:, 4] = center_x0[:, 4] .- 70 * center_x0[:, 1] # ?????
 
     stride_x_um = solution.stride[3] * 1000
     term_0 = generate_term(center_index, xindex_range, stride_x_um, (0, 0, 0))
@@ -187,13 +185,19 @@ function AllTermsData(fit_cache, eles, xindex_range, center_index)
     return AllTermsData(ele_data, center_x0, center_B, slice_coeff, slice_terms)
 end
 
-function fit_term(model::Model, term_data::AllTermsData, term_idx, maxv, yz_weight)
+function fit_term(model::Model, term_data::AllTermsData, term_idx, maxv, yz_weight;
+                  relax_high_order=false)
     x0 = @view(term_data.center_x0[:, term_idx])
     B = term_data.center_B
     nx, nt = size(B)
     if true
         @variable(model, t[1:nt])
         x = @expression(model, B * t .+ x0)
+        if relax_high_order
+            nhigh_order = size(term_data.center_x0, 2) - 10
+            @variable(model, ht[1:nhigh_order])
+            x = @expression(model, x .+ term_data.center_x0[:, 11:end] * ht)
+        end
         @constraint(model, -maxv .<= x .<= maxv)
     else
         x = x0
@@ -232,26 +236,26 @@ end
 const all_term_data =
     AllTermsData(center_fit_cache, ele_select, xindex_range, center_index)
 
-const voltages_dx = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.3,
-                               (40, 3, 3, 1, 3, 1))
-const voltages_dy = fit_term(Model(Ipopt.Optimizer), all_term_data, 2, 0.3,
-                               (10, 6, 3, 1, 3, 1))
-const voltages_dz = fit_term(Model(Ipopt.Optimizer), all_term_data, 3, 0.3,
-                               (10, 3, 6, 1, 3, 1))
-const voltages_xy = fit_term(Model(Ipopt.Optimizer), all_term_data, 4, 20.0,
-                               (400, 300, 6, 20, 30, 20))
-const voltages_yz = fit_term(Model(Ipopt.Optimizer), all_term_data, 5, 20.0,
-                             (400, 300, 6, 20, 30, 20))
-const voltages_zx = fit_term(Model(Ipopt.Optimizer), all_term_data, 6, 55.0,
-                             (400, 300, 6, 20, 30, 20))
-const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 18.0,
-                               (40, 3, 3, 2000, 300, 2000))
+const voltages_dx = fit_term(Model(Ipopt.Optimizer), all_term_data, 1, 0.003,
+                               (10, 3, 3, 1, 3, 1))
+const voltages_dy = fit_term(Model(Ipopt.Optimizer), all_term_data, 2, 0.003,
+                               (5, 6, 3, 1, 3, 1))
+const voltages_dz = fit_term(Model(Ipopt.Optimizer), all_term_data, 3, 0.003,
+                               (5, 5, 10, 1, 3, 1))
+const voltages_xy = fit_term(Model(Ipopt.Optimizer), all_term_data, 4, 6.0,
+                               (400, 300, 6, 20, 200, 20))
+const voltages_yz = fit_term(Model(Ipopt.Optimizer), all_term_data, 5, 3.2,
+                             (40, 30, 60, 20, 300, 20), relax_high_order=true)
+const voltages_zx = fit_term(Model(Ipopt.Optimizer), all_term_data, 6, 9.0,
+                             (4, 30, 60, 40, 60, 40), relax_high_order=true)
+const voltages_z2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 7, 10.0,
+                               (40, 6, 6, 200, 300, 2000))
 const voltages_x2 = fit_term(Model(Ipopt.Optimizer), all_term_data, 8, 19.0,
-                               (40, 3, 3, 3000, 300, 2000))
-const voltages_x3 = fit_term(Model(Ipopt.Optimizer), all_term_data, 9, 50000.0,
-                               (40, 3, 3, 3000, 300, 2000))
-const voltages_x4 = fit_term(Model(Ipopt.Optimizer), all_term_data, 10, 10000.0,
-                               (40, 3, 3, 3000, 300, 2000))
+                               (40, 30, 3, 300, 300, 2000))
+const voltages_x3 = fit_term(Model(Ipopt.Optimizer), all_term_data, 9, 200.0,
+                               (6, 150, 20, 300, 700, 200), relax_high_order=true)
+const voltages_x4 = fit_term(Model(Ipopt.Optimizer), all_term_data, 10, 6000.0,
+                               (4, 10, 10, 300, 300, 200), relax_high_order=true)
 
 function get_nth_part(data, idx)
     return data[idx:6:end]
