@@ -193,9 +193,12 @@ function get_wide_comp_coeff(xpos_um)
 end
 
 const xpos_ums = -350:350
-const coeff_data = [@time(get_wide_comp_coeff(xpos_um)) for xpos_um in xpos_ums]
-
 matopen("$(prefix).mat", "w") do mat
-    write(mat, "data", coeff_data)
     write(mat, "electrode_names", solution.electrode_names)
+end
+mkpath("$(prefix)")
+for xpos_um in xpos_ums
+    matopen("$(prefix)/$(xpos_um).mat", "w") do mat
+        write(mat, "data", @time(get_wide_comp_coeff(xpos_um)))
+    end
 end
