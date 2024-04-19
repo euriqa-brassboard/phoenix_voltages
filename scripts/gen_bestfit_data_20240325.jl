@@ -90,13 +90,6 @@ function ElectrodeData(fit_cache, ele, xindex_range, center_index)
                           terms.z2, terms.x2, terms.x3, terms.x4,
                           fit[0, 1, 2], # x^2y
                           fit[1, 0, 2], # x^2z
-                          # fit[0, 2, 1], # xy^2
-                          # fit[1, 1, 1], # xyz
-                          # fit[2, 0, 1], # xz^2
-                          # fit[0, 2, 2], # x^2y^2
-                          # fit[1, 1, 2], # x^2yz
-                          # fit[2, 0, 2], # x^2z^2
-                          # fit[0, 0, 5], # x^5
                           ])
 end
 
