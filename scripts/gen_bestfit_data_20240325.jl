@@ -207,7 +207,7 @@ function fit_term(model::Model, term_data::AllTermsData, term_idx, maxv, yz_weig
     max_offset = point_center - 1
     C = log(2) / max_offset^2
     for i in 1:npoints
-        x_weight = exp(-(i - point_center)^2 * C)
+        x_weight = exp((i - point_center)^2 * C)
         for j in 1:6
             e = abserr[j, i] * x_weight * yz_weight[j]
             @constraint(model, -maxerr <= e)
