@@ -21,13 +21,13 @@ function gen_model(f, ∇f, ∇²f)
 end
 
 const X = Ref(0.0)
-const X2 = Ref(2.0)
+const X2 = Ref(0.0)
 const X4 = Ref(0.0)
 
 const chain_model = gen_model(gen_polynomial_potential(X, X2, Ref(0.0), X4)...)
 const builder = ModelBuilder(chain_model)
 
-const nions = 4
+const nions = 32
 
 for i in 1:nions
     add_ion!(builder, i - (nions - 1) / 2, 1)
@@ -39,10 +39,12 @@ const ion_pos = [Float64[] for i in 1:nions]
 const axial_freqs = [Float64[] for i in 1:nions]
 const radial_freqs = [Float64[] for i in 1:nions]
 
-const x2s = range(0.1, 0.3, 1001)
+const x2s = range(0.01, 0.04, 1001)
+const x4s = range(0.0005, 0.0025, 1001)
 
 @time for x2 in x2s
     X2[] = x2 / 2
+    # X4[] = x2 / 2 / 3 / 4
     JuMP.optimize!(chain_model.model)
     for (ion, ions) in zip(chain_model.ions, ion_pos)
         push!(ions, value(ion.pos))
@@ -50,7 +52,7 @@ const x2s = range(0.1, 0.3, 1001)
     for (mode, freqs) in zip(axial_modes(chain_model), axial_freqs)
         push!(freqs, mode)
     end
-    for (mode, freqs) in zip(radial_modes(chain_model, x->4)[1], radial_freqs)
+    for (mode, freqs) in zip(radial_modes(chain_model, x->6)[1], radial_freqs)
         push!(freqs, mode)
     end
     update_init_pos!(chain_model)
